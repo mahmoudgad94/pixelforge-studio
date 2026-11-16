@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Pixelforge can't send a CSRF token; the route verifies its HMAC signature instead.
         $middleware->validateCsrfTokens(except: ['webhooks/pixelforge']);
         $middleware->alias(['admin' => EnsureAdmin::class]);
+        $middleware->trustProxies(at: '*');
 
         $middleware->web(append: [
             HandleInertiaRequests::class,
