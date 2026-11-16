@@ -1,6 +1,11 @@
 <script setup lang="ts">
+import { Alert } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/vue3';
@@ -28,74 +33,99 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Admin report', href: '/admin/re
 const start = ref(props.start);
 const end = ref(props.end);
 const apply = () => router.get(route('admin.report'), { start: start.value, end: end.value }, { preserveState: true });
+const stats = [
+    { label: 'Generations', key: 'generations' as const, prefix: '' },
+    { label: 'Credit spend', key: 'spend' as const, prefix: '' },
+    { label: 'Provider cost', key: 'cost' as const, prefix: '$' },
+    { label: 'Profit', key: 'profit' as const, prefix: '' },
+];
 </script>
 
 <template>
     <Head title="Admin report" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="mx-auto w-full max-w-6xl space-y-6 p-4">
-            <div class="flex flex-wrap items-end gap-3">
-                <div><label class="text-xs text-muted-foreground">From (UTC)</label><Input v-model="start" type="date" /></div>
-                <div><label class="text-xs text-muted-foreground">To (UTC)</label><Input v-model="end" type="date" /></div>
-                <Button @click="apply">Apply</Button>
+        <div class="mx-auto w-full max-w-6xl space-y-6 p-4 md:p-6">
+            <div class="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <h1 class="text-xl font-semibold tracking-tight">Admin report</h1>
+                    <p class="text-sm text-muted-foreground">Days are the UTC day a generation completed, like Pixelforge billing.</p>
+                </div>
+                <form class="flex flex-wrap items-end gap-2" @submit.prevent="apply">
+                    <div class="grid gap-1"><Label for="start" class="text-xs">From</Label><Input id="start" v-model="start" type="date" class="h-9" /></div>
+                    <div class="grid gap-1"><Label for="end" class="text-xs">To</Label><Input id="end" v-model="end" type="date" class="h-9" /></div>
+                    <Button type="submit" size="sm" class="h-9">Apply</Button>
+                </form>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-4">
-                <div class="rounded-xl border p-4"><div class="text-xs text-muted-foreground">Generations</div><div class="text-xl font-semibold">{{ totals.generations }}</div></div>
-                <div class="rounded-xl border p-4"><div class="text-xs text-muted-foreground">Credit spend</div><div class="text-xl font-semibold">{{ totals.spend }}</div></div>
-                <div class="rounded-xl border p-4"><div class="text-xs text-muted-foreground">Provider cost</div><div class="text-xl font-semibold">${{ totals.cost }}</div></div>
-                <div class="rounded-xl border p-4"><div class="text-xs text-muted-foreground">Profit</div><div class="text-xl font-semibold">{{ totals.profit }}</div></div>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Card v-for="s in stats" :key="s.key">
+                    <CardHeader class="pb-2"><CardDescription>{{ s.label }}</CardDescription></CardHeader>
+                    <CardContent><div class="text-2xl font-semibold tabular-nums">{{ s.prefix }}{{ totals[s.key] }}</div></CardContent>
+                </Card>
             </div>
 
-            <p v-if="usageError" class="text-sm text-red-600">Could not load Pixelforge usage: {{ usageError }}</p>
+            <Alert v-if="usageError" variant="destructive">Could not load Pixelforge usage: {{ usageError }}</Alert>
 
-            <section>
-                <h2 class="mb-2 font-semibold">Per day, checked against Pixelforge GET /v1/usage</h2>
-                <div class="overflow-x-auto rounded-xl border">
-                    <table class="w-full text-sm">
-                        <thead class="bg-muted/50 text-left text-xs text-muted-foreground">
-                            <tr>
-                                <th class="p-2">Day (UTC, completed)</th><th class="p-2">Gens</th><th class="p-2">Credit spend</th><th class="p-2">Provider cost (ours)</th>
-                                <th class="p-2">Pixelforge cost</th><th class="p-2">Profit</th><th class="p-2">Match</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="d in days" :key="d.date" class="border-t">
-                                <td class="p-2 font-mono">{{ d.date }}</td>
-                                <td class="p-2">{{ d.generations }}<span v-if="d.pixelforge_generations !== null" class="text-muted-foreground"> / {{ d.pixelforge_generations }}</span></td>
-                                <td class="p-2">{{ d.spend }}</td>
-                                <td class="p-2 font-mono">{{ d.cost }}</td>
-                                <td class="p-2 font-mono">{{ d.pixelforge_cost ?? '–' }}</td>
-                                <td class="p-2">{{ d.profit }}</td>
-                                <td class="p-2">
-                                    <span v-if="d.matches === true" class="text-green-600">✓</span>
-                                    <span v-else-if="d.matches === false" class="font-medium text-red-600">mismatch</span>
+            <Card>
+                <CardHeader>
+                    <CardTitle class="text-base">Per day</CardTitle>
+                    <CardDescription>Our provider cost checked against Pixelforge GET /v1/usage. Counts and costs must match exactly.</CardDescription>
+                </CardHeader>
+                <CardContent class="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Day</TableHead><TableHead class="text-right">Gens</TableHead><TableHead class="text-right">Credit spend</TableHead>
+                                <TableHead class="text-right">Provider cost</TableHead><TableHead class="text-right">Pixelforge</TableHead>
+                                <TableHead class="text-right">Profit</TableHead><TableHead>Check</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-for="d in days" :key="d.date" :class="d.generations === 0 && !d.pixelforge_generations ? 'text-muted-foreground' : ''">
+                                <TableCell class="font-mono text-xs">{{ d.date }}</TableCell>
+                                <TableCell class="text-right tabular-nums">{{ d.generations }}</TableCell>
+                                <TableCell class="text-right tabular-nums">{{ d.spend }}</TableCell>
+                                <TableCell class="text-right font-mono text-xs">{{ d.cost }}</TableCell>
+                                <TableCell class="text-right font-mono text-xs">{{ d.pixelforge_cost ?? '–' }}</TableCell>
+                                <TableCell class="text-right tabular-nums">{{ d.profit }}</TableCell>
+                                <TableCell>
+                                    <Badge v-if="d.matches === true" class="border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">Match</Badge>
+                                    <Badge v-else-if="d.matches === false" variant="destructive">Mismatch</Badge>
                                     <span v-else class="text-muted-foreground">–</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
 
-            <section>
-                <h2 class="mb-2 font-semibold">Per day and user</h2>
-                <div class="overflow-x-auto rounded-xl border">
-                    <table class="w-full text-sm">
-                        <thead class="bg-muted/50 text-left text-xs text-muted-foreground">
-                            <tr><th class="p-2">Day</th><th class="p-2">User</th><th class="p-2">Gens</th><th class="p-2">Credit spend</th><th class="p-2">Provider cost</th><th class="p-2">Profit</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="r in perUser" :key="r.date + r.user" class="border-t">
-                                <td class="p-2 font-mono">{{ r.date }}</td><td class="p-2">{{ r.user }}</td><td class="p-2">{{ r.generations }}</td>
-                                <td class="p-2">{{ r.spend }}</td><td class="p-2 font-mono">{{ r.cost }}</td><td class="p-2">{{ r.profit }}</td>
-                            </tr>
-                            <tr v-if="perUser.length === 0"><td colspan="6" class="p-4 text-center text-muted-foreground">No completed generations in this range.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+            <Card>
+                <CardHeader><CardTitle class="text-base">Per day and user</CardTitle></CardHeader>
+                <CardContent class="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Day</TableHead><TableHead>User</TableHead><TableHead class="text-right">Gens</TableHead>
+                                <TableHead class="text-right">Credit spend</TableHead><TableHead class="text-right">Provider cost</TableHead><TableHead class="text-right">Profit</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-for="r in perUser" :key="r.date + r.user">
+                                <TableCell class="font-mono text-xs">{{ r.date }}</TableCell>
+                                <TableCell>{{ r.user }}</TableCell>
+                                <TableCell class="text-right tabular-nums">{{ r.generations }}</TableCell>
+                                <TableCell class="text-right tabular-nums">{{ r.spend }}</TableCell>
+                                <TableCell class="text-right font-mono text-xs">{{ r.cost }}</TableCell>
+                                <TableCell class="text-right tabular-nums">{{ r.profit }}</TableCell>
+                            </TableRow>
+                            <TableRow v-if="perUser.length === 0">
+                                <TableCell :colspan="6" class="py-10 text-center text-muted-foreground">No completed generations in this range.</TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
         </div>
     </AppLayout>
 </template>
