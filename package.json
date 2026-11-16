@@ -10,8 +10,12 @@
         "lint": "eslint . --fix"
     },
     "devDependencies": {
+        "@agentclientprotocol/claude-agent-acp": "^0.107.3",
+        "@e2e-dev/acp": "^0.1.2",
+        "@e2e-dev/web": "^0.16.0",
         "@eslint/js": "^9.19.0",
         "@vue/eslint-config-typescript": "^14.3.0",
+        "e2e": "^0.23.1",
         "eslint": "^9.17.0",
         "eslint-config-prettier": "^10.0.1",
         "eslint-plugin-vue": "^9.32.0",

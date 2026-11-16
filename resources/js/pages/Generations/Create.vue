@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BuyCreditsDialog from '@/components/BuyCreditsDialog.vue';
 import InputError from '@/components/InputError.vue';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { estimate, formatUsd, type PricingTable } from '@/lib/pricing';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { ImagePlus, LoaderCircle, RectangleHorizontal, RectangleVertical, Sparkles, Square, Wallet, X } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -48,9 +49,6 @@ function submit() {
     form.transform((data) => ({ ...data, reference_images: refs.value })).post(route('generations.store'), { preserveScroll: true });
 }
 
-function buyCredits() {
-    router.post(route('credits.store'), {}, { preserveScroll: true, only: ['balance', 'balancePicos', 'flash'] });
-}
 </script>
 
 <template>
@@ -151,7 +149,7 @@ function buyCredits() {
                         <CardTitle class="text-3xl tabular-nums">{{ balance }}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <Button class="w-full" variant="secondary" @click="buyCredits">Buy $10 credits</Button>
+                        <BuyCreditsDialog :balance="balance" />
                     </CardContent>
                 </Card>
 
