@@ -8,8 +8,8 @@ defineProps<{
 }>();
 
 const page = usePage<SharedData>();
-
-const isActive = (href: string) => page.url === href || page.url.startsWith(`${href}/`) || page.url.startsWith(`${href}?`);
+// page.url can carry a query string (?page=2), so match on the path.
+const isActive = (href: string) => page.url === href || page.url.startsWith(href + '?') || page.url.startsWith(href + '/');
 </script>
 
 <template>
@@ -17,8 +17,8 @@ const isActive = (href: string) => page.url === href || page.url.startsWith(`${h
         <SidebarGroupLabel>Platform</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem v-for="item in items" :key="item.title">
-                <SidebarMenuButton as-child :is-active="isActive(item.href)">
-                    <Link :href="item.href">
+                <SidebarMenuButton as-child :is-active="isActive(item.href)" :tooltip="item.title">
+                    <Link :href="item.href" prefetch>
                         <component :is="item.icon" />
                         <span>{{ item.title }}</span>
                     </Link>

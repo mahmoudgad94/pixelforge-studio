@@ -13,8 +13,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { estimate, formatUsd, type PricingTable } from '@/lib/pricing';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/vue3';
-import { ImagePlus, LoaderCircle, RectangleHorizontal, RectangleVertical, Sparkles, Square, Wallet, X } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { ImagePlus, LoaderCircle, RectangleHorizontal, RectangleVertical, Sparkles, Square, Upload, Wallet, X } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     pricing: PricingTable;
@@ -23,15 +23,16 @@ const props = defineProps<{
     qualities: string[];
     balance: string;
     balancePicos: string;
+    prefill: { prompt: string; size: string; quality: string; reference_images: string[] } | null;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Generate', href: '/generate' }];
 
 const form = useForm({
-    prompt: '',
-    size: '1024x1024',
-    quality: 'medium',
-    reference_images: [] as string[],
+    prompt: props.prefill?.prompt ?? '',
+    size: props.prefill?.size ?? '1024x1024',
+    quality: props.prefill?.quality ?? 'medium',
+    reference_images: [...(props.prefill?.reference_images ?? [])] as string[],
 });
 
 const sizeMeta: Record<string, { label: string; icon: any }> = {
@@ -45,7 +46,57 @@ const est = computed(() => estimate(props.pricing, props.markupPercent, form.pro
 const canAfford = computed(() => BigInt(props.balancePicos) >= est.value.max.price);
 const refError = computed(() => form.errors.reference_images ?? Object.entries(form.errors).find(([k]) => k.startsWith('reference_images.'))?.[1]);
 
+// Pixelforge test switches. Click to append to the prompt, click again to remove.
+const testKeywords = [
+    { tag: '[fail]', hint: 'Fails after it was accepted: you are not charged' },
+    { tag: '[slow]', hint: 'Takes much longer: leave the page, you get notified' },
+    { tag: '[duplicate]', hint: 'Webhooks are sent twice: still charged once' },
+    { tag: '[blocked]', hint: 'Rejected by content policy at submit time' },
+    { tag: '[overloaded]', hint: 'API returns 503 first: the app retries' },
+];
+function toggleKeyword(tag: string) {
+    form.prompt = form.prompt.includes(tag)
+        ? form.prompt.replace(tag, '').replace(/\s{2,}/g, ' ').trim()
+        : `${form.prompt.trimEnd()} ${tag}`.trim();
+}
+
+// Pixelforge only accepts public URLs, so a file from the device is uploaded to our server first.
+const fileInput = ref<HTMLInputElement | null>(null);
+const uploading = ref(false);
+const uploadError = ref<string | null>(null);
+async function upload(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    (e.target as HTMLInputElement).value = '';
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+        uploadError.value = 'That image is over 5 MB.';
+        return;
+    }
+    uploading.value = true;
+    uploadError.value = null;
+    try {
+        const body = new FormData();
+        body.append('image', file);
+        const xsrf = decodeURIComponent(document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/)?.[1] ?? '');
+        const res = await fetch(route('references.store'), {
+            method: 'POST',
+            body,
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json', 'X-XSRF-TOKEN': xsrf },
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.errors?.image?.[0] ?? json?.message ?? 'Upload failed.');
+        form.reference_images.push(json.url);
+    } catch (err) {
+        uploadError.value = err instanceof Error ? err.message : 'Upload failed.';
+    } finally {
+        uploading.value = false;
+    }
+}
+
 function submit() {
+    // Ask once, on the click (browsers only allow it from a user gesture), so we can ping when the image is ready.
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
     form.transform((data) => ({ ...data, reference_images: refs.value })).post(route('generations.store'), { preserveScroll: true });
 }
 
@@ -74,7 +125,20 @@ function submit() {
                                 placeholder="A lighthouse on a cliff at sunset, cinematic lighting"
                             />
                             <div class="flex justify-between text-xs text-muted-foreground">
-                                <span>Test keywords: [fail], [slow], [duplicate], [blocked]</span>
+                                <span class="flex flex-wrap items-center gap-1">
+                                    Test:
+                                    <button
+                                        v-for="k in testKeywords"
+                                        :key="k.tag"
+                                        type="button"
+                                        :title="k.hint"
+                                        class="rounded border px-1.5 py-0.5 font-mono transition-colors hover:bg-accent hover:text-foreground"
+                                        :class="form.prompt.includes(k.tag) ? 'border-primary bg-primary/10 text-foreground' : ''"
+                                        @click="toggleKeyword(k.tag)"
+                                    >
+                                        {{ k.tag }}
+                                    </button>
+                                </span>
                                 <span class="tabular-nums">{{ [...form.prompt].length }} / 4000</span>
                             </div>
                             <InputError :message="form.errors.prompt" />
@@ -108,19 +172,34 @@ function submit() {
                             <div class="flex items-center justify-between">
                                 <div>
                                     <Label>Reference images</Label>
-                                    <p class="text-xs text-muted-foreground">Optional, up to 4 public image URLs.</p>
+                                    <p class="text-xs text-muted-foreground">Optional, up to 4. Upload from your device or paste a link. Each adds 765 tokens.</p>
                                 </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    :disabled="form.reference_images.length >= 4"
-                                    @click="form.reference_images.push('')"
-                                >
-                                    <ImagePlus class="size-4" /> Add
-                                </Button>
+                                <div class="flex gap-2">
+                                    <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" @change="upload" />
+                                    <Button type="button" variant="outline" size="sm" :disabled="form.reference_images.length >= 4 || uploading" @click="fileInput?.click()">
+                                        <LoaderCircle v-if="uploading" class="size-4 animate-spin" /><Upload v-else class="size-4" /> Upload
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        :disabled="form.reference_images.length >= 4"
+                                        @click="form.reference_images.push('')"
+                                    >
+                                        <ImagePlus class="size-4" /> Link
+                                    </Button>
+                                </div>
                             </div>
-                            <div v-for="(_, i) in form.reference_images" :key="i" class="flex gap-2">
+                            <p v-if="uploadError" class="text-sm text-destructive">{{ uploadError }}</p>
+                            <div v-for="(_, i) in form.reference_images" :key="i" class="flex items-center gap-2">
+                                <img
+                                    v-if="/^https?:\/\/.+/.test(form.reference_images[i])"
+                                    :src="form.reference_images[i]"
+                                    alt=""
+                                    class="size-9 shrink-0 rounded border object-cover"
+                                    loading="lazy"
+                                    @error="($event.target as HTMLImageElement).style.visibility = 'hidden'"
+                                />
                                 <Input v-model="form.reference_images[i]" type="url" placeholder="https://example.com/style.png" />
                                 <Button type="button" variant="ghost" size="icon" aria-label="Remove" @click="form.reference_images.splice(i, 1)">
                                     <X class="size-4" />
@@ -149,7 +228,7 @@ function submit() {
                         <CardTitle class="text-3xl tabular-nums">{{ balance }}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <BuyCreditsDialog :balance="balance" />
+                        <BuyCreditsDialog :balance-picos="balancePicos" />
                     </CardContent>
                 </Card>
 

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     start: string;
@@ -33,6 +33,28 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Admin report', href: '/admin/re
 const start = ref(props.start);
 const end = ref(props.end);
 const apply = () => router.get(route('admin.report'), { start: start.value, end: end.value }, { preserveState: true });
+
+// Quick ranges, in UTC days like Pixelforge billing.
+const utcDay = (offset: number) => new Date(Date.now() - offset * 86_400_000).toISOString().slice(0, 10);
+const presets = [
+    { label: 'Today', start: () => utcDay(0), end: () => utcDay(0) },
+    { label: 'Yesterday', start: () => utcDay(1), end: () => utcDay(1) },
+    { label: '7 days', start: () => utcDay(6), end: () => utcDay(0) },
+    { label: '30 days', start: () => utcDay(29), end: () => utcDay(0) },
+];
+const pick = (from: string, to: string) => {
+    start.value = from;
+    end.value = to;
+    apply();
+};
+const isActive = (p: (typeof presets)[number]) => props.start === p.start() && props.end === p.end();
+const singleDay = computed(() => props.start === props.end);
+
+// Days with nothing on either side are noise; hide them unless asked.
+const showEmpty = ref(false);
+const isEmpty = (d: (typeof props.days)[number]) => d.generations === 0 && !d.pixelforge_generations;
+const visibleDays = computed(() => (showEmpty.value ? props.days : props.days.filter((d) => !isEmpty(d))));
+const emptyCount = computed(() => props.days.filter(isEmpty).length);
 const stats = [
     { label: 'Generations', key: 'generations' as const, prefix: '' },
     { label: 'Credit spend', key: 'spend' as const, prefix: '' },
@@ -49,13 +71,29 @@ const stats = [
             <div class="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <h1 class="text-xl font-semibold tracking-tight">Admin report</h1>
-                    <p class="text-sm text-muted-foreground">Days are the UTC day a generation completed, like Pixelforge billing.</p>
+                    <p class="text-sm text-muted-foreground">
+                        <template v-if="singleDay">Showing {{ start }} (UTC). </template>Days are the UTC day a generation completed, like Pixelforge billing. Click a day to see it alone.
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-end gap-3">
+                <div class="flex rounded-md border p-0.5">
+                    <Button
+                        v-for="p in presets"
+                        :key="p.label"
+                        size="sm"
+                        :variant="isActive(p) ? 'secondary' : 'ghost'"
+                        class="h-8"
+                        @click="pick(p.start(), p.end())"
+                    >
+                        {{ p.label }}
+                    </Button>
                 </div>
                 <form class="flex flex-wrap items-end gap-2" @submit.prevent="apply">
                     <div class="grid gap-1"><Label for="start" class="text-xs">From</Label><Input id="start" v-model="start" type="date" class="h-9" /></div>
                     <div class="grid gap-1"><Label for="end" class="text-xs">To</Label><Input id="end" v-model="end" type="date" class="h-9" /></div>
                     <Button type="submit" size="sm" class="h-9">Apply</Button>
                 </form>
+                </div>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -82,8 +120,10 @@ const stats = [
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow v-for="d in days" :key="d.date" :class="d.generations === 0 && !d.pixelforge_generations ? 'text-muted-foreground' : ''">
-                                <TableCell class="font-mono text-xs">{{ d.date }}</TableCell>
+                            <TableRow v-for="d in visibleDays" :key="d.date" :class="isEmpty(d) ? 'text-muted-foreground' : ''">
+                                <TableCell class="font-mono text-xs">
+                                    <button type="button" class="underline-offset-4 hover:underline" @click="pick(d.date, d.date)">{{ d.date }}</button>
+                                </TableCell>
                                 <TableCell class="text-right tabular-nums">{{ d.generations }}</TableCell>
                                 <TableCell class="text-right tabular-nums">{{ d.spend }}</TableCell>
                                 <TableCell class="text-right font-mono text-xs">{{ d.cost }}</TableCell>
@@ -95,8 +135,17 @@ const stats = [
                                     <span v-else class="text-muted-foreground">–</span>
                                 </TableCell>
                             </TableRow>
+                            <TableRow v-if="visibleDays.length === 0">
+                                <TableCell :colspan="7" class="py-10 text-center text-muted-foreground">No generations completed in this range.</TableCell>
+                            </TableRow>
                         </TableBody>
                     </Table>
+                    <div v-if="emptyCount" class="border-t px-4 py-2 text-xs text-muted-foreground">
+                        {{ showEmpty ? 'Showing' : 'Hiding' }} {{ emptyCount }} day{{ emptyCount === 1 ? '' : 's' }} with no generations.
+                        <button type="button" class="ml-1 underline underline-offset-4 hover:text-foreground" @click="showEmpty = !showEmpty">
+                            {{ showEmpty ? 'Hide them' : 'Show them' }}
+                        </button>
+                    </div>
                 </CardContent>
             </Card>
 

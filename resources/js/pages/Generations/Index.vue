@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { CircleAlert, ImageOff, LoaderCircle, Sparkles } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
+import { CircleAlert, ImageOff, LoaderCircle, RotateCcw, Sparkles } from 'lucide-vue-next';
+import { reactive } from 'vue';
 
 type Status = 'pending' | 'queued' | 'processing' | 'succeeded' | 'failed';
 
@@ -33,18 +33,9 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'History', href: '/history' }];
-const inFlight = computed(() => props.generations.data.some((g) => !['succeeded', 'failed'].includes(g.status)));
 const broken = reactive(new Set<number>());
 
-let timer: ReturnType<typeof setInterval> | undefined;
-onMounted(() => {
-    timer = setInterval(() => {
-        if (inFlight.value && document.visibilityState === 'visible') {
-            router.reload({ only: ['generations', 'balance'] });
-        }
-    }, 2500);
-});
-onBeforeUnmount(() => clearInterval(timer));
+// Live updates come from GenerationWatcher in the layout (small JSON poll, reloads this page's data only when something finishes).
 
 const statusStyle: Record<Status, string> = {
     pending: 'bg-secondary text-secondary-foreground',
@@ -118,7 +109,12 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
                                 <dd v-else class="text-muted-foreground">pending</dd>
                             </div>
                         </dl>
-                        <p v-if="g.error" class="text-xs text-destructive">{{ g.error }}</p>
+                        <div v-if="g.error" class="flex items-start justify-between gap-3">
+                            <p class="text-xs text-destructive">{{ g.error }}</p>
+                            <Button v-if="g.status === 'failed'" size="sm" variant="outline" class="shrink-0" as-child>
+                                <Link :href="route('generations.create', { retry: g.id })"><RotateCcw class="size-3.5" /> Retry</Link>
+                            </Button>
+                        </div>
                         <p class="text-xs text-muted-foreground">{{ when(g.created_at) }}</p>
                     </CardContent>
                 </Card>

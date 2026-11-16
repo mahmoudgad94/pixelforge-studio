@@ -4,6 +4,8 @@ import AppShell from '@/components/AppShell.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
 import AuthorBanner from '@/components/AuthorBanner.vue';
+import FlashToast from '@/components/FlashToast.vue';
+import GenerationWatcher from '@/components/GenerationWatcher.vue';
 import type { BreadcrumbItemType } from '@/types';
 
 interface Props {
@@ -23,5 +25,7 @@ withDefaults(defineProps<Props>(), {
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
             <slot />
         </AppContent>
+        <FlashToast />
+        <GenerationWatcher />
     </AppShell>
 </template>

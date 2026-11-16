@@ -9,9 +9,9 @@ class ExampleTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_home_sends_guests_to_login()
+    public function test_home_page_shows_real_prices_and_app_needs_login()
     {
-        $this->get('/')->assertRedirect('/generate');
+        $this->get('/')->assertOk()->assertInertia(fn ($page) => $page->component('Home')->has('examples', 3));
         $this->get('/generate')->assertRedirect('/login');
     }
 

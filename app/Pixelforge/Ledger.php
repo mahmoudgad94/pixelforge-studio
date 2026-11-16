@@ -16,11 +16,17 @@ use Illuminate\Support\Facades\DB;
  */
 class Ledger
 {
-    public function purchase(User $user, int $amountPicos): void
+    /** Add credits. With an idempotency key, repeating the same purchase is a no-op. Returns false for a repeat. */
+    public function purchase(User $user, int $amountPicos, ?string $idempotencyKey = null): bool
     {
-        DB::transaction(function () use ($user, $amountPicos) {
+        return DB::transaction(function () use ($user, $amountPicos, $idempotencyKey) {
             $locked = User::query()->lockForUpdate()->findOrFail($user->id);
-            $this->post($locked, null, CreditTransaction::PURCHASE, $amountPicos);
+            if ($idempotencyKey !== null && CreditTransaction::where('idempotency_key', $idempotencyKey)->exists()) {
+                return false;
+            }
+            $this->post($locked, null, CreditTransaction::PURCHASE, $amountPicos, $idempotencyKey);
+
+            return true;
         });
     }
 
@@ -56,7 +62,7 @@ class Ledger
         }
     }
 
-    private function post(User $lockedUser, ?Generation $generation, string $type, int $amount): void
+    private function post(User $lockedUser, ?Generation $generation, string $type, int $amount, ?string $idempotencyKey = null): void
     {
         $lockedUser->balance_picos += $amount;
         $lockedUser->save();
@@ -67,6 +73,7 @@ class Ledger
             'type' => $type,
             'amount_picos' => $amount,
             'balance_after_picos' => $lockedUser->balance_picos,
+            'idempotency_key' => $idempotencyKey,
         ]);
     }
 }

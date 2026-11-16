@@ -8,13 +8,14 @@ use App\Pixelforge\AdminActions;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
 
 class ApprovalController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         AdminAction::query()->where('status', AdminAction::PENDING)->where('expires_at', '<', now())
             ->update(['status' => AdminAction::EXPIRED]);
@@ -33,7 +34,29 @@ class ApprovalController extends Controller
                     'created_at' => $a->created_at->toIso8601String(),
                     'expires_at' => $a->expires_at->toIso8601String(),
                 ]),
+            'mcp' => [
+                'url' => url('/mcp/admin'),
+                'hasToken' => $request->user()->mcp_token_hash !== null,
+                // Shown once, right after it was created (flashed by createToken below).
+                'newToken' => $request->session()->get('mcp_token'),
+            ],
         ]);
+    }
+
+    /** Create (or replace) this admin's static MCP token. Only its hash is stored; the token is shown once. */
+    public function createToken(Request $request): RedirectResponse
+    {
+        $token = 'pfs_'.Str::random(40);
+        $request->user()->forceFill(['mcp_token_hash' => hash('sha256', $token)])->save();
+
+        return back()->with('mcp_token', $token)->with('status', 'New MCP token created. Copy it now, it will not be shown again.');
+    }
+
+    public function revokeToken(Request $request): RedirectResponse
+    {
+        $request->user()->forceFill(['mcp_token_hash' => null])->save();
+
+        return back()->with('status', 'MCP token revoked. Clients using it are disconnected.');
     }
 
     public function approve(Request $request, AdminAction $action, AdminActions $actions): RedirectResponse

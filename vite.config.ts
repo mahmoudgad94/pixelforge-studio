@@ -20,6 +20,18 @@ export default defineConfig({
             },
         }),
     ],
+    build: {
+        rollupOptions: {
+            output: {
+                // Framework code changes rarely: its own long-cached file, separate from app code.
+                manualChunks(id) {
+                    if (!id.includes('node_modules')) return;
+                    if (/node_modules\/(@vue|vue|@inertiajs|axios|qs|ziggy-js)\//.test(id)) return 'vendor';
+                    if (/node_modules\/(radix-vue|@floating-ui|@internationalized|@tanstack)\//.test(id)) return 'ui';
+                },
+            },
+        },
+    },
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './resources/js'),

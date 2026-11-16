@@ -6,16 +6,25 @@ use App\Pixelforge\Ledger;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CreditController extends Controller
 {
-    /** Fake checkout: adds $10 of credits, only after the user confirmed it in the dialog. */
+    /** Credit packs a user can buy, in whole USD. */
+    public const PACKS = [5, 10, 25];
+
+    /** Fake checkout. The user confirms a pack in a dialog; the key makes a double submit harmless. */
     public function store(Request $request, Ledger $ledger): RedirectResponse
     {
-        $request->validate(['confirmed' => ['accepted']]);
+        $data = $request->validate([
+            'amount' => ['required', 'integer', Rule::in(self::PACKS)],
+            'idempotency_key' => ['required', 'uuid'],
+        ]);
 
-        $ledger->purchase($request->user(), Money::fromUsd('10'));
+        $bought = $ledger->purchase($request->user(), Money::fromUsd((string) $data['amount']), $data['idempotency_key']);
 
-        return back()->with('status', 'Added $10.00 of credits.');
+        return back()->with('status', $bought
+            ? 'Added '.Money::format(Money::fromUsd((string) $data['amount'])).' of credits.'
+            : 'That purchase was already processed, nothing was charged twice.');
     }
 }

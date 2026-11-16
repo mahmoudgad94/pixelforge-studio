@@ -18,7 +18,7 @@ export interface NavItem {
 
 export interface SharedData {
     name: string;
-    quote: { message: string; author: string };
+    inFlight?: number[];
     auth: Auth;
     ziggy: {
         location: string;

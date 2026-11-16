@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Pixelforge\Ledger;
 use App\Pixelforge\Pricing;
 use App\Support\Money;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,16 @@ class GenerationController extends Controller
 {
     public function create(Request $request, Pricing $pricing): Response
     {
+        // "Retry" on a failed card opens this page pre-filled, so the user sees the fresh estimate before paying.
+        $retry = $request->integer('retry') ? $request->user()->generations()->find($request->integer('retry')) : null;
+
         return Inertia::render('Generations/Create', [
+            'prefill' => $retry ? [
+                'prompt' => $retry->prompt,
+                'size' => $retry->size,
+                'quality' => $retry->quality,
+                'reference_images' => $retry->reference_images ?? [],
+            ] : null,
             'pricing' => $pricing->table(),
             'markupPercent' => $pricing->markupPercent(),
             'sizes' => Pricing::SIZES,
@@ -75,7 +85,24 @@ class GenerationController extends Controller
 
         SubmitGeneration::dispatch($generation->id)->afterCommit();
 
-        return to_route('generations.index')->with('status', 'Generation queued.');
+        return to_route('generations.index')->with('status', 'Generation started. You can leave this page, we will notify you when it is ready.');
+    }
+
+    /** Lightweight status poll for the in-flight generations the browser is watching (no full page reload). */
+    public function updates(Request $request): JsonResponse
+    {
+        $ids = array_slice(array_map('intval', (array) $request->query('ids', [])), 0, 50);
+
+        return response()->json(
+            $request->user()->generations()->whereIn('id', $ids)
+                ->get(['id', 'status', 'prompt', 'price_picos'])
+                ->map(fn (Generation $g) => [
+                    'id' => $g->id,
+                    'status' => $g->status,
+                    'prompt' => Str::limit($g->prompt, 80),
+                    'price' => Money::format($g->price_picos),
+                ])
+        );
     }
 
     public function index(Request $request): Response
