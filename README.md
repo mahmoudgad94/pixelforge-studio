@@ -40,6 +40,18 @@ Take-home for the PromptEdit Senior Product Engineer role: a small Laravel + Vue
 
 **Missed webhooks:** `generations:reconcile` runs every minute and polls anything in flight for over 60s (≤50 per run, under the 60 req/min limit). It also re-dispatches pending rows whose job was lost.
 
+## Admin MCP server (extra)
+
+`POST /mcp/admin` is an MCP server (Laravel MCP) so an admin can ask an AI agent things like "what was our profit last week?" or "refund Ana $2 for the broken image".
+
+- **Read tools:** `get-spend-report`, `find-generations`, `get-user-credits`, `get-action-status`.
+- **Write tools need a human:** `request-credit-adjustment` never touches a balance. It creates a pending request; an admin approves or rejects it in **Admin > Approvals**. Requests expire after 24h, can't be approved twice (row lock + status check) and can't push a balance below zero. Every applied change is a ledger row (`adjustment`).
+- **Auth:** bearer token per admin, stored as a SHA-256 hash: `php artisan mcp:token you@example.com`. Throttled to 60 requests/minute.
+
+Connect from Claude Code: `claude mcp add --transport http pixelforge https://<host>/mcp/admin --header "Authorization: Bearer <token>"`
+
+I've built the same pattern (read tools + approval-gated writes) for client operations dashboards in production; this is a small version of it.
+
 ## Report correctness
 
 Pixelforge bills on the UTC day a generation **completed**, so the report groups by `completed_at` in UTC as well. That is what makes the per-day provider cost line up exactly with `GET /v1/usage`. Use one Pixelforge API key per environment so the usage report only contains this app's generations.
@@ -64,7 +76,7 @@ Make yourself admin: `php artisan tinker --execute="App\Models\User::where('emai
 php artisan test
 ```
 
-Covers: docs pricing examples to the nanodollar, Unicode token estimate, markup rounding, hold/charge, insufficient credits, duplicate webhooks (same and different event ids), out-of-order events, webhook-before-response, failed = free, bad and stale signatures, idempotency header, content-policy rejection, and recovery from a local give-up.
+Covers: admin MCP auth, read tools, approval-gated writes (approve once, reject, expiry, no negative balance), docs pricing examples to the nanodollar, Unicode token estimate, markup rounding, hold/charge, insufficient credits, duplicate webhooks (same and different event ids), out-of-order events, webhook-before-response, failed = free, bad and stale signatures, idempotency header, content-policy rejection, and recovery from a local give-up.
 
 ## Deploy
 

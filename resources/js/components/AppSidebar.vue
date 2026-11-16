@@ -6,7 +6,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { BarChart3, History, Sparkles } from 'lucide-vue-next';
+import { BarChart3, History, ShieldCheck, Sparkles } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage<SharedData>();
@@ -14,7 +14,12 @@ const page = usePage<SharedData>();
 const mainNavItems = computed<NavItem[]>(() => [
     { title: 'Generate', href: '/generate', icon: Sparkles },
     { title: 'History', href: '/history', icon: History },
-    ...(page.props.auth.user?.is_admin ? [{ title: 'Admin report', href: '/admin/report', icon: BarChart3 }] : []),
+    ...(page.props.auth.user?.is_admin
+        ? [
+              { title: 'Admin report', href: '/admin/report', icon: BarChart3 },
+              { title: 'Approvals', href: '/admin/approvals', icon: ShieldCheck },
+          ]
+        : []),
 ]);
 
 const footerNavItems: NavItem[] = [];

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\CreditController;
 use App\Http\Controllers\GenerationController;
@@ -18,7 +19,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('history', [GenerationController::class, 'index'])->name('generations.index');
     Route::post('credits', [CreditController::class, 'store'])->name('credits.store');
 
-    Route::get('admin/report', ReportController::class)->middleware('admin')->name('admin.report');
+    Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('report', ReportController::class)->name('report');
+        Route::get('approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+        Route::post('approvals/{action}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
+        Route::post('approvals/{action}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
+    });
 });
 
 Route::post('webhooks/pixelforge', PixelforgeWebhookController::class)->name('webhooks.pixelforge');
