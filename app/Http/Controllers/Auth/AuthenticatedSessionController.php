@@ -21,6 +21,8 @@ class AuthenticatedSessionController extends Controller
         return Inertia::render('auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => $request->session()->get('status'),
+            // Demo deployments pre-fill a reviewer account (set DEMO_LOGIN_EMAIL / DEMO_LOGIN_PASSWORD).
+            'demo' => config('app.demo_login.email') ? config('app.demo_login') : null,
         ]);
     }
 

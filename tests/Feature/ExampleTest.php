@@ -9,10 +9,18 @@ class ExampleTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_returns_a_successful_response()
+    public function test_home_sends_guests_to_login()
     {
-        $response = $this->get('/');
+        $this->get('/')->assertRedirect('/generate');
+        $this->get('/generate')->assertRedirect('/login');
+    }
 
-        $response->assertStatus(200);
+    public function test_login_page_prefills_demo_account_only_when_configured()
+    {
+        config(['app.demo_login' => ['email' => null, 'password' => null]]);
+        $this->get('/login')->assertOk()->assertInertia(fn ($page) => $page->where('demo', null));
+
+        config(['app.demo_login' => ['email' => 'reviewer@demo.test', 'password' => 'demo-pass']]);
+        $this->get('/login')->assertInertia(fn ($page) => $page->where('demo.email', 'reviewer@demo.test'));
     }
 }

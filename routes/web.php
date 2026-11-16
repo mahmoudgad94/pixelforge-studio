@@ -6,11 +6,8 @@ use App\Http\Controllers\CreditController;
 use App\Http\Controllers\GenerationController;
 use App\Http\Controllers\PixelforgeWebhookController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome');
-})->name('home');
+Route::redirect('/', '/generate')->name('home');
 
 Route::middleware(['auth'])->group(function () {
     Route::redirect('dashboard', '/generate')->name('dashboard');

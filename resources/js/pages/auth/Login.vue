@@ -9,14 +9,15 @@ import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
 
-defineProps<{
+const props = defineProps<{
     status?: string;
     canResetPassword: boolean;
+    demo?: { email: string; password: string } | null;
 }>();
 
 const form = useForm({
-    email: '',
-    password: '',
+    email: props.demo?.email ?? '',
+    password: props.demo?.password ?? '',
     remember: false,
 });
 
@@ -33,6 +34,13 @@ const submit = () => {
 
         <div v-if="status" class="mb-4 text-center text-sm font-medium text-green-600">
             {{ status }}
+        </div>
+
+        <div v-if="demo" class="mb-2 rounded-lg border bg-muted/50 p-3 text-sm">
+            <div class="font-medium">Demo account, already filled in</div>
+            <div class="text-muted-foreground">
+                {{ demo.email }} / <span class="font-mono">{{ demo.password }}</span>. It is an admin, so you can see the report and approvals too.
+            </div>
         </div>
 
         <form @submit.prevent="submit" class="flex flex-col gap-6">
