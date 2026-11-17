@@ -13,7 +13,8 @@ use Illuminate\Support\Carbon;
  */
 class GenerationTimeline
 {
-    public function build(Generation $g): array
+    /** @param bool $payloads  add each call's redacted request and response (the admin page; the API and MCP stay lean) */
+    public function build(Generation $g, bool $payloads = false): array
     {
         $g->loadMissing('user:id,email');
         $ok = $g->status === Generation::SUCCEEDED;
@@ -58,7 +59,7 @@ class GenerationTimeline
                 'duplicates_ignored' => $activity->where('outcome', 'duplicate')->count(),
                 'sender_ips' => $activity->where('channel', 'webhook')->pluck('ip')->filter()->unique()->values()->all(),
             ],
-            'activity' => $activity->map->toFrontend()->all(),
+            'activity' => $activity->map(fn (PixelforgeActivity $a) => $a->toFrontend() + ($payloads ? ['advanced' => ActivityView::admin($a)] : []))->all(),
         ];
     }
 }

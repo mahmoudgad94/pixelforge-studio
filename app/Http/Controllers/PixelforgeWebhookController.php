@@ -4,22 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\PixelforgeActivity;
 use App\Models\WebhookEvent;
+use App\Pixelforge\ActivityPayload;
 use App\Pixelforge\GenerationSync;
 use App\Pixelforge\WebhookSignature;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class PixelforgeWebhookController extends Controller
 {
     public function __invoke(Request $request, GenerationSync $sync): Response
     {
         $started = hrtime(true);
+        $startedAt = Carbon::now();
         $payload = $request->getContent(); // raw body, before any JSON decoding
 
         // Every delivery is logged: who sent it, which attempt, what we answered and how long we took.
-        $log = function (string $outcome, int $status, ?array $event = null, ?int $generationId = null, ?string $detail = null) use ($request, $started) {
+        $log = function (string $outcome, int $status, ?array $event = null, ?int $generationId = null, ?string $detail = null, ?string $answer = null) use ($request, $started, $startedAt, $payload) {
             PixelforgeActivity::record([
                 'generation_id' => $generationId,
                 'channel' => 'webhook',
@@ -31,11 +35,13 @@ class PixelforgeWebhookController extends Controller
                 'event_id' => $event['id'] ?? ($request->header('Pixelforge-Event-Id') ?: null),
                 'ip' => $request->ip(),
                 'detail' => $detail,
-            ]);
+                'started_at' => $startedAt,
+                'finished_at' => Carbon::now(),
+            ] + $this->payloads($request, $payload, $answer));
         };
 
         if (! WebhookSignature::verify($payload, $request->header('Pixelforge-Signature'), (string) config('services.pixelforge.webhook_secret'))) {
-            $log('invalid_signature', 400);
+            $log('invalid_signature', 400, answer: 'Invalid signature');
 
             return response('Invalid signature', 400);
         }
@@ -50,7 +56,7 @@ class PixelforgeWebhookController extends Controller
         }
 
         if (! is_array($event) || empty($event['id']) || empty($event['type'])) {
-            $log('malformed', 400);
+            $log('malformed', 400, answer: 'Malformed event');
 
             return response('Malformed event', 400);
         }
@@ -92,5 +98,32 @@ class PixelforgeWebhookController extends Controller
         $log('processed', 204, $event, $generation?->id, $detail);
 
         return response()->noContent();
+    }
+
+    /**
+     * What came in and what we answered, redacted and capped. Logging must never break the answer,
+     * so a failure here only costs the payload columns.
+     */
+    private function payloads(Request $request, string $payload, ?string $answer): array
+    {
+        try {
+            $secrets = [config('services.pixelforge.webhook_secret'), config('services.pixelforge.key')];
+            [$body, $cut] = ActivityPayload::body($payload, $secrets);
+            [$reply, $replyCut] = ActivityPayload::body($answer, $secrets);
+
+            return [
+                'request_method' => $request->method(),
+                'request_url' => $request->fullUrl(),
+                'request_headers' => ActivityPayload::headers($request->headers->all(), $secrets),
+                'request_body' => $body,
+                'request_body_truncated' => $cut,
+                'response_body' => $reply,
+                'response_body_truncated' => $replyCut,
+            ];
+        } catch (Throwable $e) {
+            report($e);
+
+            return [];
+        }
     }
 }

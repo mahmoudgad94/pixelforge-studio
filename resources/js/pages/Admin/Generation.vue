@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import CallDetails from '@/components/CallDetails.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type CallDetails as Call } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft } from 'lucide-vue-next';
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 interface Activity {
     id: number;
@@ -21,6 +23,7 @@ interface Activity {
     event_id: string | null;
     ip: string | null;
     detail: string | null;
+    advanced: Call;
 }
 
 const props = defineProps<{
@@ -61,6 +64,16 @@ const outcomeClass = (o: string) =>
         : o === 'duplicate' || o === 'retryable_error'
           ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
           : 'bg-red-500/15 text-red-700 dark:text-red-300';
+// The call table can be wider than its card (it scrolls sideways), so each "Advanced" panel is pinned to
+// the left edge and sized to the card instead of the table: long JSON then scrolls inside its own box.
+const holder = ref<{ $el: HTMLElement } | null>(null);
+const panelWidth = ref(0);
+const measure = () => (panelWidth.value = Math.max(0, (holder.value?.$el.clientWidth ?? 0) - 32));
+onMounted(() => {
+    measure();
+    window.addEventListener('resize', measure);
+});
+onBeforeUnmount(() => window.removeEventListener('resize', measure));
 const time = (iso: string) => iso.slice(11, 23);
 </script>
 
@@ -156,7 +169,7 @@ const time = (iso: string) => iso.slice(11, 23);
                         webhook: IP, delivery attempt and what we answered.
                     </CardDescription>
                 </CardHeader>
-                <CardContent class="p-0">
+                <CardContent ref="holder" class="p-0">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -166,26 +179,48 @@ const time = (iso: string) => iso.slice(11, 23);
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow v-for="a in activity" :key="a.id">
-                                <TableCell class="font-mono text-xs">{{ time(a.at) }}</TableCell>
-                                <TableCell class="whitespace-nowrap text-sm">
-                                    <ArrowUpRight v-if="a.channel === 'api'" class="mr-1 inline size-3.5 text-blue-600" />
-                                    <ArrowDownLeft v-else class="mr-1 inline size-3.5 text-violet-600" />
-                                    <span class="font-mono text-xs">{{ a.action }}</span>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge class="border-transparent" :class="outcomeClass(a.outcome)">{{ a.outcome.replace('_', ' ') }}</Badge>
-                                    <div v-if="a.error_code" class="mt-1 font-mono text-[11px] text-muted-foreground">{{ a.error_code }}</div>
-                                </TableCell>
-                                <TableCell class="text-right font-mono text-xs">{{ a.status_code ?? '–' }}</TableCell>
-                                <TableCell class="text-right text-xs tabular-nums">{{ secs(a.duration_ms) }}</TableCell>
-                                <TableCell class="text-xs">{{ a.attempt ?? '–' }}</TableCell>
-                                <TableCell class="font-mono text-[11px]">
-                                    <div v-if="a.ip">{{ a.ip }}</div>
-                                    <div v-if="a.event_id" class="text-muted-foreground">{{ a.event_id }}</div>
-                                </TableCell>
-                                <TableCell class="max-w-xs whitespace-normal text-xs text-muted-foreground">{{ a.detail }}</TableCell>
-                            </TableRow>
+                            <template v-for="a in activity" :key="a.id">
+                                <TableRow class="border-b-0">
+                                    <TableCell class="font-mono text-xs">{{ time(a.at) }}</TableCell>
+                                    <TableCell class="whitespace-nowrap text-sm">
+                                        <ArrowUpRight v-if="a.channel === 'api'" class="mr-1 inline size-3.5 text-blue-600" />
+                                        <ArrowDownLeft v-else class="mr-1 inline size-3.5 text-violet-600" />
+                                        <span class="font-mono text-xs">{{ a.action }}</span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge class="border-transparent" :class="outcomeClass(a.outcome)">{{ a.outcome.replace('_', ' ') }}</Badge>
+                                        <div v-if="a.error_code" class="mt-1 font-mono text-[11px] text-muted-foreground">{{ a.error_code }}</div>
+                                    </TableCell>
+                                    <TableCell class="text-right font-mono text-xs">{{ a.status_code ?? '–' }}</TableCell>
+                                    <TableCell class="text-right text-xs tabular-nums">{{ secs(a.duration_ms) }}</TableCell>
+                                    <TableCell class="text-xs">{{ a.attempt ?? '–' }}</TableCell>
+                                    <TableCell class="font-mono text-[11px]">
+                                        <div v-if="a.ip">{{ a.ip }}</div>
+                                        <div v-if="a.event_id" class="text-muted-foreground">{{ a.event_id }}</div>
+                                    </TableCell>
+                                    <TableCell class="max-w-xs whitespace-normal text-xs text-muted-foreground">{{ a.detail }}</TableCell>
+                                </TableRow>
+                                <TableRow class="hover:bg-transparent">
+                                    <TableCell :colspan="8" class="whitespace-normal pb-3 pt-0">
+                                        <details class="group" :data-testid="`advanced-${a.id}`">
+                                            <summary
+                                                class="inline-flex cursor-pointer select-none items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                                            >
+                                                <ChevronRight class="size-3.5 transition-transform group-open:rotate-90" /> Advanced
+                                            </summary>
+                                            <div
+                                                class="sticky left-0 mt-2 rounded-lg border bg-card p-3"
+                                                :style="{ width: panelWidth ? panelWidth + 'px' : undefined }"
+                                            >
+                                                <p v-if="!a.advanced.method" class="mb-2 text-xs text-muted-foreground">
+                                                    No request was stored for this row (it predates payload logging).
+                                                </p>
+                                                <CallDetails :call="a.advanced" admin />
+                                            </div>
+                                        </details>
+                                    </TableCell>
+                                </TableRow>
+                            </template>
                             <TableRow v-if="activity.length === 0">
                                 <TableCell :colspan="8" class="py-10 text-center text-muted-foreground"
                                     >No calls logged for this generation (it may predate logging).</TableCell

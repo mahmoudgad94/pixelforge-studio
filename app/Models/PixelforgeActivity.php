@@ -19,7 +19,15 @@ class PixelforgeActivity extends Model
 
     protected function casts(): array
     {
-        return ['created_at' => 'datetime'];
+        return [
+            'created_at' => 'datetime',
+            'started_at' => 'datetime',
+            'finished_at' => 'datetime',
+            'request_headers' => 'array',
+            'response_headers' => 'array',
+            'request_body_truncated' => 'boolean',
+            'response_body_truncated' => 'boolean',
+        ];
     }
 
     public function generation(): BelongsTo

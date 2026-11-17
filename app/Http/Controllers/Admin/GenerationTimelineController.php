@@ -12,6 +12,6 @@ class GenerationTimelineController extends Controller
 {
     public function __invoke(Generation $generation, GenerationTimeline $timeline): Response
     {
-        return Inertia::render('Admin/Generation', $timeline->build($generation));
+        return Inertia::render('Admin/Generation', $timeline->build($generation, payloads: true));
     }
 }

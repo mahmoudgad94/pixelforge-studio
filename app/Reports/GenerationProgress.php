@@ -10,7 +10,9 @@ use Illuminate\Support\Carbon;
 /**
  * The user-facing story of one generation: friendly steps with the time each began and how long
  * it lasted, retries in plain words, and only the data the owner may see. Nothing internal
- * (provider cost, margin, IPs, raw bodies, signatures, rates, tokens) is ever returned.
+ * (provider cost, margin, IPs, signatures, rates, tokens) is ever returned. The "advanced" details
+ * of each step (what we sent, what Pixelforge answered) pass through ActivityView::user(), which
+ * drops internal money fields and secrets.
  */
 class GenerationProgress
 {
@@ -19,11 +21,13 @@ class GenerationProgress
         $activity = PixelforgeActivity::query()
             ->where('generation_id', $g->id)->where('channel', 'api')->where('action', 'POST /generations')
             ->orderBy('id')->get(['outcome', 'created_at']);
+        $calls = PixelforgeActivity::query()->where('generation_id', $g->id)->orderBy('id')->get();
 
         $expired = $g->image_url_expires_at !== null && $g->image_url_expires_at->isPast();
         $ok = $g->status === Generation::SUCCEEDED;
         $steps = $this->steps($g, $activity->first(fn ($a) => in_array($a->outcome, ['ok', 'replayed'], true))?->created_at);
         $end = $g->completed_at;
+        $steps = $this->withDetails($steps, $calls);
 
         return [
             'id' => $g->id,
@@ -109,6 +113,77 @@ class GenerationProgress
 
             return $s;
         }, $steps);
+    }
+
+    /**
+     * Put each logged call under the step it belongs to. A submit that was accepted shows its request
+     * under "Sent" and its answer under "Accepted"; webhooks go to the step their event names; polls
+     * (GET) go to the latest step that had begun when they ran.
+     */
+    private function withDetails(array $steps, $calls): array
+    {
+        $keys = array_column($steps, 'key');
+        $final = in_array('failed', $keys, true) ? 'failed' : 'succeeded';
+        $starts = [];
+        foreach ($steps as $s) {
+            if ($s['at'] !== null && $s['state'] !== 'upcoming') {
+                $starts[$s['key']] = Carbon::parse($s['at']);
+            }
+        }
+
+        $by = array_fill_keys($keys, []);
+        foreach ($calls as $call) {
+            $view = ActivityView::user($call);
+            $accepted = in_array($call->outcome, ['ok', 'replayed'], true);
+
+            if ($call->action === 'POST /generations') {
+                $entries = $accepted
+                    ? ['sent' => $this->part($view, 'request'), 'accepted' => $this->part($view, 'response')]
+                    : ['sent' => $this->part($view, 'both')];
+            } else {
+                $key = match (true) {
+                    str_ends_with($call->action, '.queued') => 'queued',
+                    str_ends_with($call->action, '.processing') => 'generating',
+                    str_ends_with($call->action, '.succeeded'), str_ends_with($call->action, '.failed') => $final,
+                    default => $this->stepAt($starts, $call->started_at ?? $call->created_at),
+                };
+                $entries = [$key => $this->part($view, 'both')];
+            }
+
+            foreach ($entries as $key => $entry) {
+                $by[in_array($key, $keys, true) ? $key : end($keys)][] = $entry;
+            }
+        }
+
+        foreach ($steps as &$step) {
+            $step['details'] = $by[$step['key']];
+        }
+
+        return $steps;
+    }
+
+    private function part(array $view, string $part): array
+    {
+        if ($part === 'request') {
+            $view['response'] = null;
+        } elseif ($part === 'response') {
+            $view['request'] = null;
+        }
+
+        return ['part' => $part] + $view;
+    }
+
+    /** The latest step that had begun by this moment. */
+    private function stepAt(array $starts, ?Carbon $at): string
+    {
+        $found = 'accepted';
+        foreach ($starts as $key => $start) {
+            if ($at !== null && $start->lte($at)) {
+                $found = $key;
+            }
+        }
+
+        return $found;
     }
 
     private function retries(Generation $g, $activity): array

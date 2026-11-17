@@ -1,12 +1,13 @@
 <script setup lang="ts">
+import CallDetails from '@/components/CallDetails.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { downloadFile, formatDuration } from '@/lib/download';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem } from '@/types';
+import { downloadFile, formatDuration } from '@/lib/download';
+import { type BreadcrumbItem, type CallDetails as Call } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { Check, ChevronLeft, CircleAlert, Copy, Download, ImageOff, LoaderCircle, Minus, RotateCcw, X } from 'lucide-vue-next';
+import { Check, ChevronLeft, ChevronRight, CircleAlert, Copy, Download, ImageOff, LoaderCircle, Minus, RotateCcw, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 type Status = 'pending' | 'queued' | 'processing' | 'succeeded' | 'failed';
@@ -16,6 +17,7 @@ interface Step {
     state: 'done' | 'current' | 'upcoming' | 'skipped' | 'failed';
     at: string | null;
     ms: number | null;
+    details: Call[];
 }
 
 const props = defineProps<{
@@ -52,7 +54,13 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
 ]);
 
 // Same wording as the History cards.
-const statusText: Record<Status, string> = { pending: 'Sending', queued: 'Queued', processing: 'Generating', succeeded: 'Succeeded', failed: 'Failed' };
+const statusText: Record<Status, string> = {
+    pending: 'Sending',
+    queued: 'Queued',
+    processing: 'Generating',
+    succeeded: 'Succeeded',
+    failed: 'Failed',
+};
 const statusStyle: Record<Status, string> = {
     pending: 'bg-secondary text-secondary-foreground',
     queued: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
@@ -60,7 +68,12 @@ const statusStyle: Record<Status, string> = {
     succeeded: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
     failed: 'bg-red-500/15 text-red-700 dark:text-red-300',
 };
-const failureTitle = { blocked: 'Blocked by the content policy', limit: 'Daily limit reached', not_sent: 'Could not be sent', failed: 'Generation failed' };
+const failureTitle = {
+    blocked: 'Blocked by the content policy',
+    limit: 'Daily limit reached',
+    not_sent: 'Could not be sent',
+    failed: 'Generation failed',
+};
 
 // Live updates: GenerationWatcher in the layout polls and reloads this page's props when the status changes.
 // Here we only tick a clock so the running step and the total keep counting.
@@ -104,7 +117,10 @@ async function copyId() {
                 </Button>
                 <div class="flex flex-wrap items-center gap-2">
                     <Button v-if="generation.can_download" size="sm" as-child>
-                        <a :href="route('generations.download', generation.id)" @click="downloadFile($event, route('generations.download', generation.id))">
+                        <a
+                            :href="route('generations.download', generation.id)"
+                            @click="downloadFile($event, route('generations.download', generation.id))"
+                        >
                             <Download class="size-4" /> Download
                         </a>
                     </Button>
@@ -116,7 +132,7 @@ async function copyId() {
 
             <div class="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
                 <!-- The image, large. -->
-                <Card class="overflow-hidden self-start">
+                <Card class="self-start overflow-hidden">
                     <div class="flex aspect-square items-center justify-center bg-muted">
                         <img
                             v-if="generation.image_url && !broken"
@@ -125,10 +141,16 @@ async function copyId() {
                             class="h-full w-full object-contain"
                             @error="broken = true"
                         />
-                        <div v-else-if="generation.status === 'succeeded'" class="flex flex-col items-center gap-2 p-6 text-center text-sm text-muted-foreground">
+                        <div
+                            v-else-if="generation.status === 'succeeded'"
+                            class="flex flex-col items-center gap-2 p-6 text-center text-sm text-muted-foreground"
+                        >
                             <ImageOff class="size-8" /> Image link expired. Pixelforge keeps images for 24 hours.
                         </div>
-                        <div v-else-if="generation.status === 'failed'" class="flex flex-col items-center gap-2 p-6 text-center text-sm text-muted-foreground">
+                        <div
+                            v-else-if="generation.status === 'failed'"
+                            class="flex flex-col items-center gap-2 p-6 text-center text-sm text-muted-foreground"
+                        >
                             <CircleAlert class="size-8" /> No image
                         </div>
                         <div v-else class="flex flex-col items-center gap-2 text-sm text-muted-foreground">
@@ -200,7 +222,11 @@ async function copyId() {
                             <dl class="grid grid-cols-2 gap-3 text-sm">
                                 <div class="min-w-0">
                                     <dt class="text-xs text-muted-foreground">Estimated</dt>
-                                    <dd class="font-medium tabular-nums" :title="'$' + generation.estimated_price_exact" data-testid="detail-estimate">
+                                    <dd
+                                        class="font-medium tabular-nums"
+                                        :title="'$' + generation.estimated_price_exact"
+                                        data-testid="detail-estimate"
+                                    >
                                         {{ generation.estimated_price }}
                                     </dd>
                                     <dd class="text-xs tabular-nums text-muted-foreground">
@@ -209,11 +235,18 @@ async function copyId() {
                                 </div>
                                 <div class="min-w-0">
                                     <dt class="text-xs text-muted-foreground">Final charge</dt>
-                                    <dd v-if="generation.price" class="font-medium tabular-nums" data-testid="detail-charge" :data-exact="generation.price_exact">
+                                    <dd
+                                        v-if="generation.price"
+                                        class="font-medium tabular-nums"
+                                        data-testid="detail-charge"
+                                        :data-exact="generation.price_exact"
+                                    >
                                         {{ generation.price }}
                                     </dd>
                                     <dd v-else class="text-muted-foreground">pending</dd>
-                                    <dd v-if="generation.price_exact" class="break-all font-mono text-[11px] text-muted-foreground">${{ generation.price_exact }}</dd>
+                                    <dd v-if="generation.price_exact" class="break-all font-mono text-[11px] text-muted-foreground">
+                                        ${{ generation.price_exact }}
+                                    </dd>
                                 </div>
                             </dl>
                         </CardContent>
@@ -260,17 +293,42 @@ async function copyId() {
                                 <X v-else-if="s.state === 'failed'" class="size-4" />
                                 <Minus v-else class="size-4" />
                             </span>
-                            <div class="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-                                <div class="min-w-0">
-                                    <div class="text-sm font-medium" :class="s.state === 'upcoming' || s.state === 'skipped' ? 'text-muted-foreground' : ''">
-                                        {{ s.label }}
-                                        <span v-if="s.state === 'skipped'" class="text-xs font-normal">(not reached)</span>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+                                    <div class="min-w-0">
+                                        <div
+                                            class="text-sm font-medium"
+                                            :class="s.state === 'upcoming' || s.state === 'skipped' ? 'text-muted-foreground' : ''"
+                                        >
+                                            {{ s.label }}
+                                            <span v-if="s.state === 'skipped'" class="text-xs font-normal">(not reached)</span>
+                                        </div>
+                                        <div v-if="s.at && s.state !== 'upcoming'" class="text-xs tabular-nums text-muted-foreground">
+                                            {{ fullTime(s.at) }}
+                                        </div>
                                     </div>
-                                    <div v-if="s.at && s.state !== 'upcoming'" class="text-xs tabular-nums text-muted-foreground">{{ fullTime(s.at) }}</div>
+                                    <div
+                                        v-if="stepDuration(s) !== null && stepDuration(s) !== undefined"
+                                        class="text-xs tabular-nums text-muted-foreground"
+                                    >
+                                        <span v-if="s.state === 'current'">for </span>{{ formatDuration(stepDuration(s)) }}
+                                    </div>
                                 </div>
-                                <div v-if="stepDuration(s) !== null && stepDuration(s) !== undefined" class="text-xs tabular-nums text-muted-foreground">
-                                    <span v-if="s.state === 'current'">for </span>{{ formatDuration(stepDuration(s)) }}
-                                </div>
+                                <details v-if="s.details.length" class="group mt-2" :data-testid="`advanced-${s.key}`">
+                                    <summary
+                                        class="inline-flex cursor-pointer select-none items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                                    >
+                                        <ChevronRight class="size-3.5 transition-transform group-open:rotate-90" /> Advanced details
+                                    </summary>
+                                    <div class="mt-2 space-y-4 rounded-lg border bg-card p-3">
+                                        <CallDetails
+                                            v-for="c in s.details"
+                                            :key="c.id + (c.part ?? '')"
+                                            :call="c"
+                                            class="[&:not(:first-child)]:border-t [&:not(:first-child)]:pt-4"
+                                        />
+                                    </div>
+                                </details>
                             </div>
                         </li>
                     </ol>
