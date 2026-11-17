@@ -95,7 +95,9 @@ One image, three roles chosen by the `ROLE` env var (`docker/start.sh`):
 | scheduler | `scheduler` | every-minute reconciler for missed or late webhooks |
 | background | `background` | worker and scheduler together, for hosts that limit the service count (used on Railway's free plan) |
 
-Separate services mean a slow Pixelforge call never holds up a page, and each one restarts or scales on its own. `ROLE=all` (the default) runs all three in one container for single-service hosts. `railway.json` builds the Dockerfile and always restarts a service that exits (the worker recycles itself hourly).
+On Railway set each service's builder to Dockerfile and its `ROLE` variable; the restart policy "on failure" is enough, since no role exits on its own.
+
+Separate services mean a slow Pixelforge call never holds up a page, and each one restarts or scales on its own. `ROLE=all` (the default) runs all three in one container for single-service hosts.
 
 Every service needs the same `DB_URL` (Postgres), `APP_KEY`, `APP_URL`, `PIXELFORGE_API_KEY`, `PIXELFORGE_WEBHOOK_SECRET`, `PASSPORT_PRIVATE_KEY` and `PASSPORT_PUBLIC_KEY` (contents of the key files, so all services sign and check OAuth tokens with one pair). Set the webhook URL in Pixelforge to `https://<host>/webhooks/pixelforge`.
 

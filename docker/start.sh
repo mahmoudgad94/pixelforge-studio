@@ -31,20 +31,20 @@ case "$ROLE" in
     exec frankenphp run --config docker/Caddyfile
     ;;
   worker)
-    exec php artisan queue:work --sleep=1 --max-time=3600
+    exec php artisan queue:work --sleep=1
     ;;
   scheduler)
     exec php artisan schedule:work
     ;;
   background)
-    # Worker and scheduler together; if either dies the container exits and the host restarts it.
+    # Worker and scheduler together; if either crashes the container exits non-zero and the host restarts it.
     php artisan schedule:work &
     trap 'kill 0' EXIT
-    php artisan queue:work --sleep=1 --max-time=3600
+    php artisan queue:work --sleep=1
     ;;
   all)
     # If one background process dies the container restarts (exit trap below).
-    php artisan queue:work --sleep=1 --max-time=3600 &
+    php artisan queue:work --sleep=1 &
     php artisan schedule:work &
     trap 'kill 0' EXIT
     exec frankenphp run --config docker/Caddyfile
