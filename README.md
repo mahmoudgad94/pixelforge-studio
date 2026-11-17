@@ -86,7 +86,17 @@ Covers: admin MCP auth (static token, full OAuth flow, admins only, OAuth discov
 
 ## Deploy
 
-`Dockerfile` runs web (FrankenPHP), queue worker and scheduler in one container and migrates on boot. Needs `DB_URL` (Postgres), `APP_KEY`, `APP_URL`, `PIXELFORGE_API_KEY`, `PIXELFORGE_WEBHOOK_SECRET`, and for the MCP OAuth sign-in `PASSPORT_PRIVATE_KEY` / `PASSPORT_PUBLIC_KEY` (contents of the key files). Set the webhook URL in Pixelforge to `https://<host>/webhooks/pixelforge`.
+One image, three roles chosen by the `ROLE` env var (`docker/start.sh`):
+
+| Service | `ROLE` | Does |
+|---|---|---|
+| web | `web` | FrankenPHP HTTP server; runs migrations on boot |
+| worker | `worker` | queue worker that submits generations to Pixelforge |
+| scheduler | `scheduler` | every-minute reconciler for missed or late webhooks |
+
+Separate services mean a slow Pixelforge call never holds up a page, and each one restarts or scales on its own. `ROLE=all` (the default) runs all three in one container for single-service hosts. `railway.json` builds the Dockerfile and always restarts a service that exits (the worker recycles itself hourly).
+
+Every service needs the same `DB_URL` (Postgres), `APP_KEY`, `APP_URL`, `PIXELFORGE_API_KEY`, `PIXELFORGE_WEBHOOK_SECRET`, `PASSPORT_PRIVATE_KEY` and `PASSPORT_PUBLIC_KEY` (contents of the key files, so all services sign and check OAuth tokens with one pair). Set the webhook URL in Pixelforge to `https://<host>/webhooks/pixelforge`.
 
 ## With more time
 
