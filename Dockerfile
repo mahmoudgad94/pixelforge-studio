@@ -13,7 +13,7 @@ COPY . .
 COPY --from=vendor /app/vendor/tightenco/ziggy ./vendor/tightenco/ziggy
 RUN npm run build
 
-FROM dunglas/frankenphp:1-php8.3
+FROM dunglas/frankenphp:1-php8.4
 RUN install-php-extensions pdo_pgsql intl zip bcmath pcntl opcache \
  && printf 'opcache.enable=1\nopcache.validate_timestamps=0\nopcache.memory_consumption=128\nopcache.jit=tracing\nopcache.jit_buffer_size=32M\n' > /usr/local/etc/php/conf.d/zz-opcache.ini
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
