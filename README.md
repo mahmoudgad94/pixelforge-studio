@@ -46,9 +46,15 @@ Take-home for the PromptEdit Senior Product Engineer role: a small Laravel + Vue
 
 - **Read tools:** `get-spend-report`, `find-generations`, `get-user-credits`, `get-action-status`.
 - **Write tools need a human:** `request-credit-adjustment` never touches a balance. It creates a pending request; an admin approves or rejects it in **Admin > Approvals**. Requests expire after 24h, can't be approved twice (row lock + status check) and can't push a balance below zero. Every applied change is a ledger row (`adjustment`).
-- **Auth:** bearer token per admin, stored as a SHA-256 hash: `php artisan mcp:token you@example.com`. Throttled to 60 requests/minute.
+- **Auth:** OAuth sign-in (Laravel Passport, with discovery and dynamic client registration from `Mcp::oauthRoutes()`), or a static bearer token per admin stored as a SHA-256 hash. Only admins (`users.is_admin`) can authorize or call it; tools act as that admin. Throttled to 60 requests/minute.
 
-Connect from Claude Code: `claude mcp add --transport http pixelforge https://<host>/mcp/admin --header "Authorization: Bearer <token>"`
+### Connect Claude to the admin MCP
+
+- **claude.ai / Claude Desktop:** Settings > Connectors > Add custom connector, paste `https://<host>/mcp/admin`, then sign in with an admin account and click **Authorize**.
+- **Claude Code:** `claude mcp add --transport http pixelforge https://<host>/mcp/admin`, then run `/mcp` and pick `pixelforge` to sign in.
+- **Static token (fallback, no browser):** `php artisan mcp:token you@example.com`, then `claude mcp add --transport http pixelforge https://<host>/mcp/admin --header "Authorization: Bearer <token>"`.
+
+OAuth needs signing keys: `php artisan passport:keys` writes `storage/oauth-*.key` (gitignored). In production set `PASSPORT_PRIVATE_KEY` and `PASSPORT_PUBLIC_KEY` instead (the container generates key files on boot if they are missing, but they would change on every redeploy without a volume and sign everyone out).
 
 I've built the same pattern (read tools + approval-gated writes) for client operations dashboards in production; this is a small version of it.
 
@@ -62,7 +68,7 @@ Pixelforge bills on the UTC day a generation **completed**, so the report groups
 composer install && npm install
 cp .env.example .env && php artisan key:generate
 # set PIXELFORGE_API_KEY and PIXELFORGE_WEBHOOK_SECRET (from the Pixelforge dashboard)
-php artisan migrate
+php artisan migrate && php artisan passport:keys
 composer run dev            # web + queue + vite
 php artisan schedule:work   # reconciler
 # webhooks need a public URL: e.g. `cloudflared tunnel --url http://localhost:8000`
@@ -76,11 +82,11 @@ Make yourself admin: `php artisan tinker --execute="App\Models\User::where('emai
 php artisan test
 ```
 
-Covers: admin MCP auth, read tools, approval-gated writes (approve once, reject, expiry, no negative balance), docs pricing examples to the nanodollar, Unicode token estimate, markup rounding, hold/charge, insufficient credits, duplicate webhooks (same and different event ids), out-of-order events, webhook-before-response, failed = free, bad and stale signatures, idempotency header, content-policy rejection, and recovery from a local give-up.
+Covers: admin MCP auth (static token, full OAuth flow, admins only, OAuth discovery), read tools, approval-gated writes (approve once, reject, expiry, no negative balance), docs pricing examples to the nanodollar, Unicode token estimate, markup rounding, hold/charge, insufficient credits, duplicate webhooks (same and different event ids), out-of-order events, webhook-before-response, failed = free, bad and stale signatures, idempotency header, content-policy rejection, and recovery from a local give-up.
 
 ## Deploy
 
-`Dockerfile` runs web (FrankenPHP), queue worker and scheduler in one container and migrates on boot. Needs `DB_URL` (Postgres), `APP_KEY`, `APP_URL`, `PIXELFORGE_API_KEY`, `PIXELFORGE_WEBHOOK_SECRET`. Set the webhook URL in Pixelforge to `https://<host>/webhooks/pixelforge`.
+`Dockerfile` runs web (FrankenPHP), queue worker and scheduler in one container and migrates on boot. Needs `DB_URL` (Postgres), `APP_KEY`, `APP_URL`, `PIXELFORGE_API_KEY`, `PIXELFORGE_WEBHOOK_SECRET`, and for the MCP OAuth sign-in `PASSPORT_PRIVATE_KEY` / `PASSPORT_PUBLIC_KEY` (contents of the key files). Set the webhook URL in Pixelforge to `https://<host>/webhooks/pixelforge`.
 
 ## With more time
 

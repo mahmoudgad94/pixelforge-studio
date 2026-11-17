@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -29,13 +30,21 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request): RedirectResponse|SymfonyResponse
     {
         $request->authenticate();
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $redirect = redirect()->intended(route('dashboard', absolute: false));
+
+        // Back to an OAuth consent screen (Claude connecting): use a full page load, since
+        // approving it redirects to another site, which an Inertia XHR can't follow.
+        if (str_contains($redirect->getTargetUrl(), '/oauth/authorize')) {
+            return Inertia::location($redirect->getTargetUrl());
+        }
+
+        return $redirect;
     }
 
     /**

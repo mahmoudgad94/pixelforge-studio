@@ -5,3 +5,4 @@ public/build
 storage/logs/*
 database/*.sqlite
 .git
+storage/*.key
