@@ -65,13 +65,18 @@ async function poll() {
         if (!res.ok) return schedule(10000);
         const updates: Update[] = await res.json();
         let changed = false;
+        // The detail page shows every step, so it refreshes on each status change, not only when finished.
+        let detailChanged = false;
         for (const u of updates) {
+            const shown = (page.props as { generation?: { id: number; status: string } }).generation;
+            if (route().current('generations.show') && shown?.id === u.id && shown.status !== u.status) detailChanged = true;
             if (u.status === 'succeeded' || u.status === 'failed') {
                 watching.delete(u.id);
                 notify(u.status === 'succeeded', u);
                 changed = true;
             }
         }
+        if (detailChanged || (changed && route().current('generations.show'))) router.reload({ only: ['generation'] });
         // The history page shows live cards; refresh just its data when something finished.
         if (changed && route().current('generations.index')) router.reload({ only: ['generations', 'balance'] });
         else if (changed && route().current('generations.create')) router.reload({ only: ['balance', 'balancePicos'] });

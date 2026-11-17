@@ -8,6 +8,7 @@ const props = defineProps<{ path: string }>();
 const kind = computed(() => {
     const p = props.path;
     if (p.startsWith('/generate')) return 'generate';
+    if (/^\/history\/\d+/.test(p)) return 'history-detail';
     if (p.startsWith('/history')) return 'history';
     if (p.startsWith('/admin/report')) return 'report';
     if (p.startsWith('/admin/approvals')) return 'approvals';
@@ -49,6 +50,19 @@ const kind = computed(() => {
                 <div v-for="i in 6" :key="i" class="overflow-hidden rounded-xl border">
                     <Skeleton class="aspect-square w-full rounded-none" />
                     <div class="space-y-3 p-4"><Skeleton class="h-4 w-4/5" /><Skeleton class="h-4 w-1/2" /><Skeleton class="h-10 w-full" /></div>
+                </div>
+            </div>
+        </template>
+
+        <!-- One of your images: back link, big image beside the facts, then the steps. -->
+        <template v-else-if="kind === 'history-detail'">
+            <Skeleton class="h-8 w-28" />
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+                <Skeleton class="aspect-square w-full rounded-xl" />
+                <div class="space-y-4">
+                    <div class="space-y-3 rounded-xl border p-5"><Skeleton class="h-5 w-24" /><Skeleton class="h-4 w-full" /><Skeleton class="h-4 w-4/5" /></div>
+                    <div class="grid grid-cols-2 gap-3"><Skeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" /></div>
+                    <div class="space-y-3 rounded-xl border p-5"><Skeleton v-for="i in 5" :key="i" class="h-8 w-full" /></div>
                 </div>
             </div>
         </template>

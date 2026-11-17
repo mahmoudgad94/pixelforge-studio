@@ -17,6 +17,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('generate', [GenerationController::class, 'create'])->name('generations.create');
     Route::post('generations', [GenerationController::class, 'store'])->middleware('throttle:20,1')->name('generations.store');
     Route::get('history', [GenerationController::class, 'index'])->name('generations.index');
+    Route::get('history/{generation}', [GenerationController::class, 'show'])->whereNumber('generation')->name('generations.show');
+    Route::get('history/{generation}/download', [GenerationController::class, 'download'])->whereNumber('generation')->name('generations.download');
     Route::get('generations/updates', [GenerationController::class, 'updates'])->name('generations.updates');
     Route::post('references', [ReferenceImageController::class, 'store'])->middleware('throttle:20,1')->name('references.store');
     Route::post('credits', [CreditController::class, 'store'])->middleware('throttle:10,1')->name('credits.store');

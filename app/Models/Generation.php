@@ -81,6 +81,8 @@ class Generation extends Model
             'error' => $this->error_message,
             'created_at' => $this->created_at?->toIso8601String(),
             'completed_at' => $this->completed_at?->toIso8601String(),
+            'duration_ms' => $this->completed_at && $this->created_at ? (int) $this->created_at->diffInMilliseconds($this->completed_at) : null,
+            'can_download' => $this->status === self::SUCCEEDED && $this->image_url !== null && ! $expired,
         ];
     }
 }

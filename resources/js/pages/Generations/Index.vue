@@ -5,7 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { CircleAlert, ImageOff, LoaderCircle, RotateCcw, Sparkles } from 'lucide-vue-next';
+import { downloadFile, formatDuration } from '@/lib/download';
+import { CircleAlert, Download, ImageOff, LoaderCircle, RotateCcw, Sparkles, Timer } from 'lucide-vue-next';
 import { reactive } from 'vue';
 
 type Status = 'pending' | 'queued' | 'processing' | 'succeeded' | 'failed';
@@ -25,6 +26,8 @@ interface Generation {
     error: string | null;
     created_at: string;
     completed_at: string | null;
+    duration_ms: number | null;
+    can_download: boolean;
 }
 
 defineProps<{
@@ -89,7 +92,11 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
                     :data-testid="'generation:' + g.prompt"
                     :data-status="g.status"
                 >
-                    <div class="relative flex aspect-square items-center justify-center bg-muted">
+                    <Link
+                        :href="route('generations.show', g.id)"
+                        class="relative flex aspect-square items-center justify-center bg-muted"
+                        :aria-label="'Details for ' + g.prompt"
+                    >
                         <img
                             v-if="g.image_url && !broken.has(g.id)"
                             :src="g.image_url"
@@ -111,12 +118,15 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
                             <LoaderCircle class="size-6 animate-spin" /> {{ statusLabel(g.status) }}…
                         </div>
                         <Badge class="absolute left-3 top-3 border-transparent" :class="statusStyle[g.status]">{{ statusLabel(g.status) }}</Badge>
-                    </div>
+                    </Link>
                     <CardContent class="space-y-3 p-4">
                         <p class="line-clamp-2 text-sm font-medium" :title="g.prompt">{{ g.prompt }}</p>
                         <div class="flex flex-wrap gap-1.5">
                             <Badge variant="outline">{{ g.size }}</Badge>
                             <Badge variant="outline" class="capitalize">{{ g.quality }}</Badge>
+                            <Badge v-if="g.duration_ms !== null" variant="outline" class="gap-1" :title="'Total time, click to result'">
+                                <Timer class="size-3" /> {{ formatDuration(g.duration_ms) }}
+                            </Badge>
                         </div>
                         <dl class="grid grid-cols-2 gap-2 border-t pt-3 text-sm">
                             <div>
@@ -144,7 +154,19 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
                                 <Link :href="route('generations.create', { retry: g.id })"><RotateCcw class="size-3.5" /> Retry</Link>
                             </Button>
                         </div>
-                        <p class="text-xs text-muted-foreground">{{ when(g.created_at) }}</p>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="text-xs text-muted-foreground">{{ when(g.created_at) }}</p>
+                            <div class="flex items-center gap-2">
+                                <Button v-if="g.can_download" size="sm" variant="outline" as-child>
+                                    <a :href="route('generations.download', g.id)" @click="downloadFile($event, route('generations.download', g.id))">
+                                        <Download class="size-3.5" /> Download
+                                    </a>
+                                </Button>
+                                <Button size="sm" variant="secondary" as-child>
+                                    <Link :href="route('generations.show', g.id)">Details</Link>
+                                </Button>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
