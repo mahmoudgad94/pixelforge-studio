@@ -70,7 +70,7 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
             </Card>
 
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Card v-for="g in generations.data" :key="g.id" class="overflow-hidden">
+                <Card v-for="g in generations.data" :key="g.id" class="overflow-hidden" :data-testid="'generation:' + g.prompt" :data-status="g.status">
                     <div class="relative flex aspect-square items-center justify-center bg-muted">
                         <img
                             v-if="g.image_url && !broken.has(g.id)"
@@ -104,7 +104,7 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
                             </div>
                             <div>
                                 <dt class="text-xs text-muted-foreground">Charged</dt>
-                                <dd v-if="g.status === 'succeeded'" class="font-medium tabular-nums" :title="'$' + g.price_exact">{{ g.price }}</dd>
+                                <dd v-if="g.status === 'succeeded'" class="font-medium tabular-nums" :title="'$' + g.price_exact" :data-testid="'charged:' + g.prompt" :data-exact="g.price_exact">{{ g.price }}</dd>
                                 <dd v-else-if="g.status === 'failed'" class="tabular-nums">$0.00</dd>
                                 <dd v-else class="text-muted-foreground">pending</dd>
                             </div>

@@ -225,7 +225,7 @@ function submit() {
                 <Card>
                     <CardHeader class="pb-3">
                         <CardDescription class="flex items-center gap-2"><Wallet class="size-4" /> Balance</CardDescription>
-                        <CardTitle class="text-3xl tabular-nums">{{ balance }}</CardTitle>
+                        <CardTitle class="text-3xl tabular-nums" data-testid="balance" :data-picos="balancePicos">{{ balance }}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <BuyCreditsDialog :balance-picos="balancePicos" />
@@ -235,7 +235,7 @@ function submit() {
                 <Card>
                     <CardHeader class="pb-3">
                         <CardDescription>Estimated price</CardDescription>
-                        <CardTitle class="text-3xl tabular-nums">{{ formatUsd(est.expected.price) }}</CardTitle>
+                        <CardTitle class="text-3xl tabular-nums" data-testid="estimated-price">{{ formatUsd(est.expected.price) }}</CardTitle>
                         <p class="text-sm text-muted-foreground tabular-nums">
                             {{ formatUsd(est.min.price) }} to {{ formatUsd(est.max.price) }}
                         </p>
