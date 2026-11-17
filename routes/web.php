@@ -14,7 +14,7 @@ Route::get('/', HomeController::class)->name('home');
 Route::middleware(['auth'])->group(function () {
     Route::redirect('dashboard', '/generate')->name('dashboard');
     Route::get('generate', [GenerationController::class, 'create'])->name('generations.create');
-    Route::post('generations', [GenerationController::class, 'store'])->name('generations.store');
+    Route::post('generations', [GenerationController::class, 'store'])->middleware('throttle:20,1')->name('generations.store');
     Route::get('history', [GenerationController::class, 'index'])->name('generations.index');
     Route::get('generations/updates', [GenerationController::class, 'updates'])->name('generations.updates');
     Route::post('references', [ReferenceImageController::class, 'store'])->middleware('throttle:20,1')->name('references.store');

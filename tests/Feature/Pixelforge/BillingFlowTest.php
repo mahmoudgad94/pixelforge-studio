@@ -338,4 +338,20 @@ class BillingFlowTest extends TestCase
         $this->assertSame(Generation::SUCCEEDED, $g->status);
         $this->assertSame(Money::fromUsd('10') - $g->price_picos, $user->fresh()->balance_picos);
     }
+
+    public function test_a_user_cannot_queue_more_than_the_in_flight_cap(): void
+    {
+        $user = $this->userWithCredits('100');
+        Queue::fake();
+        for ($i = 0; $i < \App\Http\Controllers\GenerationController::MAX_IN_FLIGHT; $i++) {
+            $this->actingAs($user)->post('/generations', ['prompt' => "fox {$i}", 'size' => '1024x1024', 'quality' => 'low'])->assertSessionHasNoErrors();
+        }
+
+        $balance = $user->fresh()->balance_picos;
+        $this->actingAs($user)->post('/generations', ['prompt' => 'one too many', 'size' => '1024x1024', 'quality' => 'low'])
+            ->assertSessionHasErrors('prompt');
+
+        $this->assertSame(\App\Http\Controllers\GenerationController::MAX_IN_FLIGHT, Generation::count());
+        $this->assertSame($balance, $user->fresh()->balance_picos);
+    }
 }

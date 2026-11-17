@@ -41,6 +41,9 @@ class GenerationController extends Controller
         ]);
     }
 
+    /** Generations one user may have waiting or running at once. */
+    public const MAX_IN_FLIGHT = 10;
+
     public function store(Request $request, Pricing $pricing, Ledger $ledger): RedirectResponse
     {
         $data = $request->validate([
@@ -56,6 +59,15 @@ class GenerationController extends Controller
 
         $generation = DB::transaction(function () use ($request, $data, $references, $estimate, $ledger) {
             $user = User::query()->lockForUpdate()->findOrFail($request->user()->id);
+
+            // Pixelforge runs 3 at a time for the whole app; one user should not fill the queue for everyone.
+            $inFlight = Generation::query()->where('user_id', $user->id)
+                ->whereIn('status', [Generation::PENDING, Generation::QUEUED, Generation::PROCESSING])->count();
+            if ($inFlight >= self::MAX_IN_FLIGHT) {
+                throw ValidationException::withMessages([
+                    'prompt' => 'You already have '.$inFlight.' generations in progress. Wait for one to finish, then try again.',
+                ]);
+            }
 
             $generation = new Generation([
                 'uuid' => (string) Str::uuid(),
