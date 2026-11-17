@@ -44,7 +44,15 @@ const statusStyle: Record<Status, string> = {
     succeeded: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
     failed: 'bg-red-500/15 text-red-700 dark:text-red-300',
 };
-const statusLabel = (s: Status) => (s === 'pending' ? 'Sending' : s.charAt(0).toUpperCase() + s.slice(1));
+// What the user sees: our request is on its way, Pixelforge has it in line, then it is drawing the image.
+const statusText: Record<Status, string> = {
+    pending: 'Sending',
+    queued: 'Queued',
+    processing: 'Generating',
+    succeeded: 'Succeeded',
+    failed: 'Failed',
+};
+const statusLabel = (s: Status) => statusText[s];
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 </script>
 
