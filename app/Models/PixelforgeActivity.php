@@ -14,6 +14,9 @@ class PixelforgeActivity extends Model
 
     protected $guarded = [];
 
+    // Millisecond timestamps: several calls and webhooks can land in the same second.
+    protected $dateFormat = 'Y-m-d H:i:s.v';
+
     protected function casts(): array
     {
         return ['created_at' => 'datetime'];
