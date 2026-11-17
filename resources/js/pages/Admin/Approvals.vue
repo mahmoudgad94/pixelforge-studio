@@ -173,7 +173,7 @@ const examples = [
                 </CardContent>
             </Card>
 
-            <div class="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+            <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                 <Card>
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2 text-base"><KeyRound class="size-4" /> Connect your AI</CardTitle>
@@ -183,12 +183,14 @@ const examples = [
                         </CardDescription>
                     </CardHeader>
                     <CardContent class="space-y-4">
-                        <div class="flex flex-wrap gap-1 rounded-md border p-0.5">
+                        <div class="flex flex-wrap gap-1 rounded-md border p-0.5" role="tablist">
                             <Button
                                 v-for="c in clients"
                                 :key="c.id"
                                 size="sm"
                                 class="h-8"
+                                role="tab"
+                                :aria-selected="client === c.id"
                                 :variant="client === c.id ? 'secondary' : 'ghost'"
                                 @click="client = c.id"
                             >
@@ -196,73 +198,91 @@ const examples = [
                             </Button>
                         </div>
 
-                        <ol v-if="client === 'claude-ai'" class="list-decimal space-y-2 pl-5 text-sm">
-                            <li>
-                                In Claude, open <span class="font-medium">Settings, Connectors</span>, then
-                                <span class="font-medium">Add custom connector</span>.
-                            </li>
-                            <li>
-                                Paste the server address
-                                <button
-                                    type="button"
-                                    class="ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-xs hover:bg-accent"
-                                    @click="copy('url', mcp.url)"
-                                >
-                                    <Check v-if="copied === 'url'" class="size-3" /><Copy v-else class="size-3" /> copy
-                                </button>
-                            </li>
-                            <li>
-                                Claude opens this app: sign in with an admin account and press <span class="font-medium">Authorize</span>. No token to
-                                copy.
-                            </li>
-                            <li>Ask it something from the examples on the right.</li>
-                        </ol>
+                        <!-- All three panels share one grid cell, so the box keeps the tallest one's height and nothing jumps when switching. -->
+                        <div class="grid grid-cols-[minmax(0,1fr)]" role="tabpanel">
+                            <ol
+                                class="list-decimal space-y-2 pl-5 text-sm"
+                                :class="['[grid-area:1/1]', client === 'claude-ai' ? '' : 'invisible']"
+                                :inert="client !== 'claude-ai'"
+                                :aria-hidden="client !== 'claude-ai'"
+                            >
+                                <li>
+                                    In Claude, open <span class="font-medium">Settings, Connectors</span>, then
+                                    <span class="font-medium">Add custom connector</span>.
+                                </li>
+                                <li>
+                                    Paste the server address
+                                    <button
+                                        type="button"
+                                        class="ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-xs hover:bg-accent"
+                                        @click="copy('url', mcp.url)"
+                                    >
+                                        <Check v-if="copied === 'url'" class="size-3" /><Copy v-else class="size-3" /> copy
+                                    </button>
+                                </li>
+                                <li>
+                                    Claude opens this app: sign in with an admin account and press <span class="font-medium">Authorize</span>. No
+                                    token to copy.
+                                </li>
+                                <li>Ask it something from the examples on the right.</li>
+                            </ol>
 
-                        <div v-else-if="client === 'claude-code'" class="space-y-3 text-sm">
-                            <p>Run this, then type <code class="font-mono">/mcp</code> in Claude Code and sign in when the browser opens:</p>
-                            <div class="relative">
-                                <pre class="overflow-x-auto rounded-lg bg-muted p-3 pr-12 font-mono text-xs">{{ snippets.claudeCodeOauth }}</pre>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    class="absolute right-1 top-1 size-8"
-                                    aria-label="Copy"
-                                    @click="copy('cc', snippets.claudeCodeOauth)"
-                                >
-                                    <Check v-if="copied === 'cc'" class="size-4" /><Copy v-else class="size-4" />
-                                </Button>
+                            <div
+                                class="space-y-3 text-sm"
+                                :class="['[grid-area:1/1]', client === 'claude-code' ? '' : 'invisible']"
+                                :inert="client !== 'claude-code'"
+                                :aria-hidden="client !== 'claude-code'"
+                            >
+                                <p>Run this, then type <code class="font-mono">/mcp</code> in Claude Code and sign in when the browser opens:</p>
+                                <div class="relative">
+                                    <pre class="overflow-x-auto rounded-lg bg-muted p-3 pr-12 font-mono text-xs">{{ snippets.claudeCodeOauth }}</pre>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        class="absolute right-1 top-1 size-8"
+                                        aria-label="Copy"
+                                        @click="copy('cc', snippets.claudeCodeOauth)"
+                                    >
+                                        <Check v-if="copied === 'cc'" class="size-4" /><Copy v-else class="size-4" />
+                                    </Button>
+                                </div>
+                                <p class="text-muted-foreground">Or skip sign in and use a token (create one below):</p>
+                                <div class="relative">
+                                    <pre class="overflow-x-auto rounded-lg bg-muted p-3 pr-12 font-mono text-xs">{{ snippets.claudeCodeToken }}</pre>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        class="absolute right-1 top-1 size-8"
+                                        aria-label="Copy"
+                                        @click="copy('cct', snippets.claudeCodeToken)"
+                                    >
+                                        <Check v-if="copied === 'cct'" class="size-4" /><Copy v-else class="size-4" />
+                                    </Button>
+                                </div>
                             </div>
-                            <p class="text-muted-foreground">Or skip sign in and use a token (create one below):</p>
-                            <div class="relative">
-                                <pre class="overflow-x-auto rounded-lg bg-muted p-3 pr-12 font-mono text-xs">{{ snippets.claudeCodeToken }}</pre>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    class="absolute right-1 top-1 size-8"
-                                    aria-label="Copy"
-                                    @click="copy('cct', snippets.claudeCodeToken)"
-                                >
-                                    <Check v-if="copied === 'cct'" class="size-4" /><Copy v-else class="size-4" />
-                                </Button>
-                            </div>
-                        </div>
 
-                        <div v-else class="space-y-3 text-sm">
-                            <p>
-                                Add this to the app's MCP settings file (for Cursor: <code class="font-mono">~/.cursor/mcp.json</code>). Create a
-                                token below first.
-                            </p>
-                            <div class="relative">
-                                <pre class="overflow-x-auto rounded-lg bg-muted p-3 pr-12 font-mono text-xs">{{ snippets.json }}</pre>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    class="absolute right-1 top-1 size-8"
-                                    aria-label="Copy"
-                                    @click="copy('json', snippets.json)"
-                                >
-                                    <Check v-if="copied === 'json'" class="size-4" /><Copy v-else class="size-4" />
-                                </Button>
+                            <div
+                                class="space-y-3 text-sm"
+                                :class="['[grid-area:1/1]', client === 'json' ? '' : 'invisible']"
+                                :inert="client !== 'json'"
+                                :aria-hidden="client !== 'json'"
+                            >
+                                <p>
+                                    Add this to the app's MCP settings file (for Cursor: <code class="font-mono">~/.cursor/mcp.json</code>). Create a
+                                    token below first.
+                                </p>
+                                <div class="relative">
+                                    <pre class="overflow-x-auto rounded-lg bg-muted p-3 pr-12 font-mono text-xs">{{ snippets.json }}</pre>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        class="absolute right-1 top-1 size-8"
+                                        aria-label="Copy"
+                                        @click="copy('json', snippets.json)"
+                                    >
+                                        <Check v-if="copied === 'json'" class="size-4" /><Copy v-else class="size-4" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
 
