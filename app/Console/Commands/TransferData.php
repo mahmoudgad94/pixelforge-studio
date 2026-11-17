@@ -70,7 +70,7 @@ class TransferData extends Command
                         return $row;
                     }, $chunk));
                 }
-                if ($driver === 'pgsql' && in_array('id', $columns, true)) {
+                if ($driver === 'pgsql' && in_array($types['id'] ?? '', ['int4', 'int8'], true)) {
                     DB::statement("select setval(pg_get_serial_sequence('{$table}', 'id'), coalesce((select max(id) from {$table}), 1), (select count(*) > 0 from {$table}))");
                 }
                 $this->line(sprintf('%-22s %d rows', $table, count($data[$table] ?? [])));
