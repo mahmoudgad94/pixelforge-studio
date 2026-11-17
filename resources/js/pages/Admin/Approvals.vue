@@ -3,6 +3,7 @@ import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
@@ -65,8 +66,29 @@ async function copy(key: string, text: string) {
         /* clipboard blocked: the text is still selectable */
     }
 }
-const createToken = () => router.post(route('admin.mcp-token.store'), {}, { preserveScroll: true });
-const revokeToken = () => router.delete(route('admin.mcp-token.destroy'), { preserveScroll: true });
+// Replacing or revoking a token cuts off every app that uses it, so both ask first.
+const tokenAction = ref<'replace' | 'revoke' | null>(null);
+const tokenBusy = ref(false);
+const tokenCopy = {
+    replace: {
+        title: 'Replace the access token?',
+        body: 'The current token stops working right away. Any app still using it loses access until you paste in the new one.',
+        confirm: 'Replace token',
+    },
+    revoke: {
+        title: 'Revoke the access token?',
+        body: 'The token stops working right away and every app using it loses access. You can create a new one later.',
+        confirm: 'Revoke token',
+    },
+};
+const sendToken = (action: 'create' | 'replace' | 'revoke') => {
+    tokenBusy.value = true;
+    const options = { preserveScroll: true, onFinish: () => ((tokenBusy.value = false), (tokenAction.value = null)) };
+    if (action === 'revoke') router.delete(route('admin.mcp-token.destroy'), options);
+    else router.post(route('admin.mcp-token.store'), {}, options);
+};
+const createToken = () => (props.mcp.hasToken ? (tokenAction.value = 'replace') : sendToken('create'));
+const revokeToken = () => (tokenAction.value = 'revoke');
 
 const tools = [
     { icon: Eye, name: 'get-spend-report', body: 'Spend, provider cost and profit per day and per user, checked against Pixelforge usage.' },
@@ -303,6 +325,20 @@ const examples = [
                                     <Button size="sm" @click="createToken">{{ mcp.hasToken ? 'Replace token' : 'Create token' }}</Button>
                                 </div>
                             </div>
+                            <Dialog :open="tokenAction !== null" @update:open="(open) => !open && !tokenBusy && (tokenAction = null)">
+                                <DialogContent v-if="tokenAction" class="sm:max-w-md" data-testid="token-confirm">
+                                    <DialogHeader>
+                                        <DialogTitle>{{ tokenCopy[tokenAction].title }}</DialogTitle>
+                                        <DialogDescription>{{ tokenCopy[tokenAction].body }}</DialogDescription>
+                                    </DialogHeader>
+                                    <DialogFooter class="gap-2">
+                                        <DialogClose as-child><Button variant="outline" :disabled="tokenBusy">Cancel</Button></DialogClose>
+                                        <Button variant="destructive" :disabled="tokenBusy" @click="sendToken(tokenAction)">
+                                            {{ tokenCopy[tokenAction].confirm }}
+                                        </Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                             <Alert v-if="mcp.newToken" class="mt-3">
                                 <div class="text-sm font-medium">Copy it now, it is shown only once.</div>
                                 <div class="mt-2 flex items-center gap-2">
