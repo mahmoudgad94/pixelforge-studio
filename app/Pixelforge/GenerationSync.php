@@ -50,7 +50,7 @@ class GenerationSync
 
             // A local-only failure (we gave up submitting, Pixelforge never confirmed)
             // is not authoritative: if Pixelforge says it actually exists, believe Pixelforge.
-            $localOnlyFailure = $local->status === Generation::FAILED && $local->error_code === 'submission_failed';
+            $localOnlyFailure = $local->status === Generation::FAILED && in_array($local->error_code, Generation::LOCAL_ONLY_FAILURES, true);
 
             if ($local->isFinal() && ! $localOnlyFailure) {
                 if ($incoming !== $local->status && Generation::RANK[$incoming] === 3) {
@@ -90,6 +90,10 @@ class GenerationSync
                 $local->error_code = $remote['error']['code'] ?? 'generation_failed';
                 $local->error_message = $remote['error']['message'] ?? 'Generation failed';
                 $local->rates = $remote['rates'] ?? $local->rates;
+            }
+
+            if ($local->isFinal()) {
+                $local->completed_at ??= now();
             }
 
             $local->save();

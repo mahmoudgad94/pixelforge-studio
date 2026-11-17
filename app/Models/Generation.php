@@ -27,6 +27,12 @@ class Generation extends Model
         self::FAILED => 3,
     ];
 
+    /**
+     * Failures we recorded ourselves without Pixelforge confirming them. Pixelforge may
+     * still have created the generation, so its later word (webhook or poll) wins.
+     */
+    public const LOCAL_ONLY_FAILURES = ['submission_failed', 'idempotency_key_reused'];
+
     protected $guarded = [];
 
     protected function casts(): array

@@ -21,6 +21,12 @@ class PixelforgeWebhookController extends Controller
         }
 
         $event = json_decode($payload, true);
+
+        // "Send test event" from the dashboard: acknowledge, nothing to record.
+        if (is_array($event) && ($event['type'] ?? null) === 'ping') {
+            return response()->noContent();
+        }
+
         if (! is_array($event) || empty($event['id']) || empty($event['type'])) {
             return response('Malformed event', 400);
         }

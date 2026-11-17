@@ -28,10 +28,28 @@ class PixelforgeException extends RuntimeException
         );
     }
 
-    /** Worth retrying later: nothing was created and the same request may succeed. */
+    /** Errors that will fail the same way every time: retrying only wastes requests. */
+    public const PERMANENT = [
+        'invalid_api_key',
+        'validation_failed',
+        'content_policy_violation',
+        'daily_limit_exceeded',
+        'idempotency_key_reused',
+        'not_found',
+    ];
+
+    /** Errors where nothing was created and the same request may succeed later. */
+    public const TEMPORARY = ['rate_limit_exceeded', 'concurrency_limit_exceeded', 'overloaded'];
+
+    /** Worth retrying later. Server errors (5xx) are retried too: the Idempotency-Key makes that safe. */
     public function isRetryable(): bool
     {
-        return in_array($this->errorCode, ['rate_limit_exceeded', 'concurrency_limit_exceeded', 'overloaded'], true)
-            || ($this->errorCode === null && ($this->status >= 500 || $this->status === 429));
+        if (in_array($this->errorCode, self::PERMANENT, true)) {
+            return false;
+        }
+
+        return in_array($this->errorCode, self::TEMPORARY, true)
+            || $this->status >= 500
+            || ($this->errorCode === null && $this->status === 429);
     }
 }

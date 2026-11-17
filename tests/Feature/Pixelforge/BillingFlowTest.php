@@ -225,4 +225,117 @@ class BillingFlowTest extends TestCase
         $this->assertSame(Generation::SUCCEEDED, $g->status);
         $this->assertSame(Money::fromUsd('10') - $g->price_picos, $user->fresh()->balance_picos);
     }
+
+    public function test_ping_is_acknowledged_with_2xx_and_changes_nothing(): void
+    {
+        $body = json_encode(['id' => 'evt_ping', 'object' => 'event', 'type' => 'ping', 'created_at' => now()->toIso8601String(), 'data' => ['object' => null]]);
+        $this->call('POST', '/webhooks/pixelforge', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_PIXELFORGE_SIGNATURE' => WebhookSignature::sign($body, self::SECRET),
+        ], $body)->assertNoContent();
+
+        // A ping without an id (shape not guaranteed) is still acknowledged, never redirected.
+        $bare = json_encode(['type' => 'ping']);
+        $this->call('POST', '/webhooks/pixelforge', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_PIXELFORGE_SIGNATURE' => WebhookSignature::sign($bare, self::SECRET),
+        ], $bare)->assertNoContent();
+
+        $this->assertSame(0, Generation::count());
+    }
+
+    public function test_webhook_endpoint_never_redirects_even_for_a_signed_in_browser_or_bad_input(): void
+    {
+        $user = $this->userWithCredits();
+        $this->actingAs($user);
+
+        foreach (['', 'not json', json_encode(['id' => 'evt_z'])] as $body) {
+            $status = $this->call('POST', '/webhooks/pixelforge', [], [], [], [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_PIXELFORGE_SIGNATURE' => WebhookSignature::sign($body, self::SECRET),
+            ], $body)->getStatusCode();
+            $this->assertTrue($status < 300 || $status >= 400, "redirected with {$status}");
+        }
+    }
+
+    public function test_final_failure_without_completed_at_still_gets_a_completion_time(): void
+    {
+        $user = $this->userWithCredits();
+        $g = $this->createGeneration($user);
+
+        $this->sendWebhook('evt_f', 'generation.failed', $this->remote($g, 'failed', ['error' => ['code' => 'internal_error', 'message' => 'oops']]));
+
+        $this->assertNotNull($g->fresh()->completed_at);
+    }
+
+    /** @return array<string, array{int, string, string}> */
+    public static function permanentErrors(): array
+    {
+        return [
+            'daily limit' => [429, 'daily_limit_exceeded', 'rate_limit_error'],
+            'bad key' => [401, 'invalid_api_key', 'authentication_error'],
+            'validation' => [422, 'validation_failed', 'invalid_request_error'],
+            'key reused' => [409, 'idempotency_key_reused', 'idempotency_error'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('permanentErrors')]
+    public function test_permanent_errors_are_not_retried_and_cost_nothing(int $status, string $code, string $type): void
+    {
+        $user = $this->userWithCredits();
+        $g = $this->createGeneration($user);
+
+        Http::fake(['*/v1/generations' => Http::response(['error' => ['type' => $type, 'code' => $code, 'message' => 'no']], $status, ['Retry-After' => '5'])]);
+        $job = (new SubmitGeneration($g->id))->withFakeQueueInteractions();
+        $job->handle(app(PixelforgeClient::class), app(GenerationSync::class));
+
+        $job->assertNotReleased();
+        $this->assertCount(1, Http::recorded(fn ($r) => str_ends_with($r->url(), '/v1/generations'))); // one create, no retry
+        $this->assertSame(Generation::FAILED, $g->fresh()->status);
+        $this->assertSame($code, $g->fresh()->error_code);
+        $this->assertSame(Money::fromUsd('10'), $user->fresh()->balance_picos);
+    }
+
+    /** @return array<string, array{int, ?string}> */
+    public static function temporaryErrors(): array
+    {
+        return [
+            'rate limit' => [429, 'rate_limit_exceeded'],
+            'concurrency' => [429, 'concurrency_limit_exceeded'],
+            'overloaded' => [503, 'overloaded'],
+            'provider 500' => [500, 'internal_error'],
+            'bare 502' => [502, null],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('temporaryErrors')]
+    public function test_temporary_errors_are_retried_after_retry_after(int $status, ?string $code): void
+    {
+        $user = $this->userWithCredits();
+        $g = $this->createGeneration($user);
+
+        $body = $code ? ['error' => ['type' => 'x', 'code' => $code, 'message' => 'later']] : 'Bad gateway';
+        Http::fake(['*/v1/generations' => Http::response($body, $status, ['Retry-After' => '7'])]);
+        $job = (new SubmitGeneration($g->id))->withFakeQueueInteractions();
+        $job->handle(app(PixelforgeClient::class), app(GenerationSync::class));
+
+        $job->assertReleased();
+        $this->assertSame(Generation::PENDING, $g->fresh()->status);
+    }
+
+    public function test_idempotency_conflict_is_not_final_if_pixelforge_reports_the_generation(): void
+    {
+        $user = $this->userWithCredits();
+        $g = $this->createGeneration($user);
+
+        Http::fake(['*/v1/generations' => Http::response(['error' => ['type' => 'idempotency_error', 'code' => 'idempotency_key_reused', 'message' => 'reused']], 409)]);
+        (new SubmitGeneration($g->id))->handle(app(PixelforgeClient::class), app(GenerationSync::class));
+        $this->assertSame(Generation::FAILED, $g->fresh()->status);
+
+        $this->sendWebhook('evt_s', 'generation.succeeded', $this->succeeded($g));
+
+        $g->refresh();
+        $this->assertSame(Generation::SUCCEEDED, $g->status);
+        $this->assertSame(Money::fromUsd('10') - $g->price_picos, $user->fresh()->balance_picos);
+    }
 }

@@ -82,8 +82,16 @@ class SubmitGeneration implements ShouldQueue
             'content_policy_violation' => 'Blocked by the content policy. You were not charged.',
             'daily_limit_exceeded' => 'Daily generation limit reached. Try again tomorrow. You were not charged.',
             'validation_failed' => 'Pixelforge rejected the request: '.$e->getMessage(),
+            'invalid_api_key' => 'The app could not authenticate with Pixelforge. You were not charged.',
+            // Our key is this row's UUID and its parameters never change, so this should not happen.
+            // Kept as a local-only failure: if Pixelforge did create it, a webhook or poll still records it.
+            'idempotency_key_reused' => 'Pixelforge saw this request before with different details. You were not charged.',
             default => 'Pixelforge error: '.$e->getMessage(),
         };
+
+        if (in_array($e->errorCode, ['invalid_api_key', 'idempotency_key_reused'], true)) {
+            Log::error('Pixelforge rejected a submission', ['generation' => $generation->id, 'code' => $e->errorCode, 'status' => $e->status]);
+        }
 
         $sync->failLocally($generation, $e->errorCode ?? 'http_'.$e->status, $message);
     }
