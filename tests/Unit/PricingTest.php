@@ -67,4 +67,18 @@ class PricingTest extends TestCase
         $cost = Pricing::providerCost(['output_tokens' => 1], ['output_tokens' => '0.000001']);
         $this->assertSame(1, $cost); // 1e-12 USD
     }
+
+    public function test_markup_outside_0_to_1000_is_refused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new Pricing(Pricing::defaultTable(), -5);
+    }
+
+    public function test_a_saved_markup_overrides_the_current_setting(): void
+    {
+        $cost = Money::fromUsd('0.056560');
+        $this->assertSame('0.070700000000', Money::toUsdString($this->pricing()->priceFor($cost)));
+        $this->assertSame('0.056560000000', Money::toUsdString($this->pricing()->priceFor($cost, 0)));
+        $this->assertSame('0.084840000000', Money::toUsdString($this->pricing()->priceFor($cost, 50)));
+    }
 }

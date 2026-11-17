@@ -109,7 +109,7 @@ Test: `test_success_charges_exact_actual_price_once_even_with_duplicate_webhooks
 
 - 1 USD = 10^12 picodollars (`app/Support/Money.php:18`, `SCALE = 12`). Everything money-related is an integer in the database and in PHP. `brick/math` does the decimal work.
 - Provider cost: `tokens x rate / 1M` per token type, summed as exact decimals, then rounded **up** to a whole picodollar only if a rate has more than 6 decimals (`app/Pixelforge/Pricing.php:71-89`). The `rates` used are the ones frozen on the generation, copied from the response (`GenerationSync.php:81`), not today's rates.
-- User price: cost x 1.25, rounded up (`Pricing.php:91-97`). With the current rates (`5.00`, `10.00`, `40.00`, `12.50`) the result is exact, so nothing is rounded.
+- User price: cost x (100 + markup) / 100, rounded up; markup is `PIXELFORGE_MARKUP_PERCENT` (25 by default) and is saved on each generation when it is created (`Pricing.php:91-97`). With the current rates (`5.00`, `10.00`, `40.00`, `12.50`) the result is exact, so nothing is rounded.
 - Why picodollars: Pixelforge reports 9 decimals; a 25% markup can add two more (`cost x 125 / 100`), so 11 decimals are needed. 12 gives headroom. The docs say "floating-point will drift", and that is the only warning they give.
 - Tests: `tests/Unit/PricingTest.php:16` (docs' worked maximum), `:29` (estimate max matches docs), `:38` (the docs' succeeded example, exact), `:53` (markup rounds up), `:65` (odd rates).
 - The estimate shown to the user is a range because text tokens are only known within +-15% and reasoning tokens within a range per quality (`Pricing.php:113-142`). The hold is the maximum price (`app/Http/Controllers/GenerationController.php:83`).

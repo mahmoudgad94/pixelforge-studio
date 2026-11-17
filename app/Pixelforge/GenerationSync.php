@@ -81,7 +81,7 @@ class GenerationSync
                 $local->rates = $remote['rates'];
                 $local->usage = $remote['usage'];
                 $local->provider_cost_picos = Pricing::providerCost($remote['usage'], $remote['rates']);
-                $local->price_picos = $this->pricing->priceFor($local->provider_cost_picos);
+                $local->price_picos = $this->pricing->priceFor($local->provider_cost_picos, $local->markup_percent);
                 $local->image_url = $remote['image_url'] ?? null;
                 $local->image_url_expires_at = $this->date($remote['image_url_expires_at'] ?? null);
                 $local->error_code = null;

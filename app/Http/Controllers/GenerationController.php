@@ -62,7 +62,7 @@ class GenerationController extends Controller
         $references = array_values($data['reference_images'] ?? []);
         $estimate = $pricing->estimate($data['prompt'], $data['size'], $data['quality'], count($references));
 
-        $generation = DB::transaction(function () use ($request, $data, $references, $estimate, $ledger) {
+        $generation = DB::transaction(function () use ($request, $data, $references, $estimate, $ledger, $pricing) {
             $user = User::query()->lockForUpdate()->findOrFail($request->user()->id);
 
             // Pixelforge runs 3 at a time for the whole app; one user should not fill the queue for everyone.
@@ -80,6 +80,7 @@ class GenerationController extends Controller
                 'prompt' => $data['prompt'],
                 'size' => $data['size'],
                 'quality' => $data['quality'],
+                'markup_percent' => $pricing->markupPercent(),
                 'reference_images' => $references,
                 'estimated_min_price_picos' => $estimate['min']['price'],
                 'estimated_price_picos' => $estimate['expected']['price'],

@@ -8,7 +8,7 @@ use Brick\Math\RoundingMode;
 /**
  * Money is kept as integer picodollars (1 USD = 10^12 picodollars).
  *
- * Pixelforge prices to 9 decimal places (nanodollars) and we add a 25% markup,
+ * Pixelforge prices to 9 decimal places (nanodollars) and we add a whole-percent markup (25% by default),
  * which needs two more places. Picodollars keep every provider cost and every
  * user price exact as an integer, with no floats anywhere. A 64-bit integer
  * still holds over 9 million dollars, far above any balance here.

@@ -1,6 +1,6 @@
 # Pixelforge Studio
 
-Take-home for the PromptEdit Senior Product Engineer role: a small Laravel + Vue + Inertia app where users generate images through the Pixelforge API and pay for them with credits (Pixelforge cost + 25%).
+Take-home for the PromptEdit Senior Product Engineer role: a small Laravel + Vue + Inertia app where users generate images through the Pixelforge API and pay for them with credits (Pixelforge cost + a markup, 25% by default and set with `PIXELFORGE_MARKUP_PERCENT`).
 
 **Live:** _URL here_ · **Stack:** Laravel 12, Vue 3, Inertia 2, Tailwind, Postgres (SQLite locally), database queue.
 
@@ -17,7 +17,7 @@ Take-home for the PromptEdit Senior Product Engineer role: a small Laravel + Vue
 
 **Actual cost** = Σ tokens × rate / 1M, computed from the generation's own `usage` and the `rates` frozen on that generation (not today's rates). `app/Pixelforge/Pricing.php`. Unit tests reproduce both worked examples from the docs to the nanodollar.
 
-**User price** = cost × 1.25, rounded **up** to the next picodollar (never undercharge). With Pixelforge's current rates it is always exact, so no rounding actually happens. Sub-cent amounts are charged exactly; nothing is rounded to cents.
+**User price** = cost × (100 + markup) / 100, rounded **up** to the next picodollar (never undercharge). With Pixelforge's current rates it is always exact, so no rounding actually happens. Sub-cent amounts are charged exactly; nothing is rounded to cents. The markup comes from `PIXELFORGE_MARKUP_PERCENT` (25 by default, 0 to 1000). Each generation saves the markup it was quoted with, so changing the setting never re-prices an image that is already running.
 
 **Estimate.** Text tokens are only known within ±15% and reasoning tokens within a per-quality range, so the UI shows expected / min / max. The same formula runs in PHP (authoritative) and in TypeScript with `BigInt` (live preview).
 

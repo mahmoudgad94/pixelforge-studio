@@ -13,7 +13,7 @@ use Brick\Math\RoundingMode;
  * price, so the real cost is computed from the generation's `usage` and the
  * `rates` frozen on that generation when it was created.
  *
- * User price = provider cost + markup (25%), rounded UP to the next picodollar
+ * User price = provider cost + markup (PIXELFORGE_MARKUP_PERCENT, 25 by default), rounded UP to the next picodollar
  * so we can never undercharge. With Pixelforge's current rates the result is
  * already exact and no rounding happens at all.
  */
@@ -28,7 +28,12 @@ final class Pricing
     /**
      * @param  array{rates: array<string,string>, tokens: array<string,mixed>}  $table  shape of GET /v1/pricing
      */
-    public function __construct(private array $table, private int $markupPercent = 25) {}
+    public function __construct(private array $table, private int $markupPercent = 25)
+    {
+        if ($markupPercent < 0 || $markupPercent > 1000) {
+            throw new \InvalidArgumentException("PIXELFORGE_MARKUP_PERCENT must be between 0 and 1000, got {$markupPercent}.");
+        }
+    }
 
     public static function defaultTable(): array
     {
@@ -88,10 +93,13 @@ final class Pricing
         return $total->toScale(0, RoundingMode::UP)->toInt();
     }
 
-    public function priceFor(int $providerCostPicos): int
+    /**
+     * @param  ?int  $markupPercent  the markup saved on the generation when it was created; null uses the current setting
+     */
+    public function priceFor(int $providerCostPicos, ?int $markupPercent = null): int
     {
         return BigInteger::of($providerCostPicos)
-            ->multipliedBy(100 + $this->markupPercent)
+            ->multipliedBy(100 + ($markupPercent ?? $this->markupPercent))
             ->dividedBy(100, RoundingMode::UP)
             ->toInt();
     }

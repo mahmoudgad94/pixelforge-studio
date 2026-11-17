@@ -138,6 +138,35 @@ class BillingFlowTest extends TestCase
         $this->assertSame(Money::fromUsd('10') - $g->price_picos, $user->fresh()->balance_picos);
     }
 
+    public function test_markup_comes_from_config_and_is_frozen_on_each_generation(): void
+    {
+        $user = $this->userWithCredits();
+        $quotedAt25 = $this->createGeneration($user);
+        $this->assertSame(25, $quotedAt25->markup_percent);
+
+        // The setting changes while that image is still running.
+        config(['services.pixelforge.markup_percent' => 50]);
+        $this->app->forgetInstance(Pricing::class);
+        $quotedAt50 = $this->createGeneration($user, 'a blue fox');
+        $this->assertSame(50, $quotedAt50->markup_percent);
+
+        $this->sendWebhook('evt_25', 'generation.succeeded', $this->succeeded($quotedAt25))->assertNoContent();
+        $this->sendWebhook('evt_50', 'generation.succeeded', $this->succeeded($quotedAt50))->assertNoContent();
+
+        $this->assertSame(self::PRICE, Money::toUsdString($quotedAt25->fresh()->price_picos)); // cost + 25%
+        $this->assertSame('0.084840000000', Money::toUsdString($quotedAt50->fresh()->price_picos)); // cost + 50%
+    }
+
+    public function test_the_generate_page_shows_the_configured_markup(): void
+    {
+        config(['services.pixelforge.markup_percent' => 40]);
+        $this->app->forgetInstance(Pricing::class);
+
+        $this->actingAs($this->userWithCredits())->get('/generate')
+            ->assertInertia(fn ($page) => $page->where('markupPercent', 40));
+        $this->get('/')->assertInertia(fn ($page) => $page->where('markupPercent', 40));
+    }
+
     public function test_out_of_order_events_never_move_backwards(): void
     {
         $user = $this->userWithCredits();
