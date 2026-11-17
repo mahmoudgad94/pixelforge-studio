@@ -100,4 +100,18 @@ class SpendReportTest extends TestCase
         $this->actingAs(User::factory()->create())->getJson('/admin/report/days/2026-11-10')->assertForbidden();
         $this->actingAs(User::factory()->create(['is_admin' => true]))->getJson('/admin/report/days/2026-02-30')->assertNotFound();
     }
+
+    public function test_the_admin_mcp_server_shows_the_same_day_detail(): void
+    {
+        $ok = $this->succeeded('2026-11-10 12:00:00');
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        \App\Mcp\AdminServer::actingAs($admin)->tool(\App\Mcp\Tools\GetDayGenerations::class, ['date' => '2026-11-10'])
+            ->assertOk()
+            ->assertStructuredContentPath('count', 1)
+            ->assertStructuredContentPath('generations.0.id', $ok->id)
+            ->assertStructuredContentPath('generations.0.cost', '0.056560000');
+
+        \App\Mcp\AdminServer::actingAs($admin)->tool(\App\Mcp\Tools\GetDayGenerations::class, ['date' => 'yesterday'])->assertHasErrors();
+    }
 }

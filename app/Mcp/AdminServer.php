@@ -4,6 +4,7 @@ namespace App\Mcp;
 
 use App\Mcp\Tools\FindGenerations;
 use App\Mcp\Tools\GetActionStatus;
+use App\Mcp\Tools\GetDayGenerations;
 use App\Mcp\Tools\GetSpendReport;
 use App\Mcp\Tools\GetUserCredits;
 use App\Mcp\Tools\RequestCreditAdjustment;
@@ -24,6 +25,7 @@ class AdminServer extends Server
 {
     protected array $tools = [
         GetSpendReport::class,
+        GetDayGenerations::class,
         FindGenerations::class,
         GetUserCredits::class,
         RequestCreditAdjustment::class,
