@@ -33,7 +33,7 @@ class ReconcileGenerations extends Command
             ->get()
             ->each(function (Generation $generation) use ($client, $sync) {
                 try {
-                    $sync->apply($generation, $client->getGeneration($generation->pixelforge_id));
+                    $sync->apply($generation, $client->forGeneration($generation->id)->getGeneration($generation->pixelforge_id));
                 } catch (PixelforgeException $e) {
                     $this->warn("#{$generation->id}: {$e->getMessage()}");
                     if ($e->isRetryable()) {

@@ -5,6 +5,7 @@ namespace App\Mcp;
 use App\Mcp\Tools\FindGenerations;
 use App\Mcp\Tools\GetActionStatus;
 use App\Mcp\Tools\GetDayGenerations;
+use App\Mcp\Tools\GetGenerationTimeline;
 use App\Mcp\Tools\GetSpendReport;
 use App\Mcp\Tools\GetUserCredits;
 use App\Mcp\Tools\RequestCreditAdjustment;
@@ -27,6 +28,7 @@ class AdminServer extends Server
         GetSpendReport::class,
         GetDayGenerations::class,
         FindGenerations::class,
+        GetGenerationTimeline::class,
         GetUserCredits::class,
         RequestCreditAdjustment::class,
         GetActionStatus::class,

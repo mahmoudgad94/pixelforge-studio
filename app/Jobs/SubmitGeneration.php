@@ -45,7 +45,7 @@ class SubmitGeneration implements ShouldQueue
         $generation->increment('submit_attempts');
 
         try {
-            $remote = $client->createGeneration([
+            $remote = $client->forGeneration($generation->id, $generation->submit_attempts)->createGeneration([
                 'prompt' => $generation->prompt,
                 'size' => $generation->size,
                 'quality' => $generation->quality,

@@ -3,8 +3,11 @@
 namespace Tests\Feature\Pixelforge;
 
 use App\Jobs\SubmitGeneration;
+use App\Mcp\AdminServer;
+use App\Mcp\Tools\GetGenerationTimeline;
 use App\Models\CreditTransaction;
 use App\Models\Generation;
+use App\Models\PixelforgeActivity;
 use App\Models\User;
 use App\Models\WebhookEvent;
 use App\Pixelforge\GenerationSync;
@@ -353,5 +356,44 @@ class BillingFlowTest extends TestCase
 
         $this->assertSame(\App\Http\Controllers\GenerationController::MAX_IN_FLIGHT, Generation::count());
         $this->assertSame($balance, $user->fresh()->balance_picos);
+    }
+
+    public function test_every_call_and_webhook_is_logged_and_shown_on_the_timeline_web_mcp_and_api(): void
+    {
+        $user = $this->userWithCredits();
+        $user->forceFill(['is_admin' => true, 'mcp_token_hash' => hash('sha256', 'pfs_admin')])->save();
+        $g = $this->createGeneration($user);
+
+        Http::fake(['*/v1/generations' => Http::sequence()
+            ->push(['error' => ['type' => 'rate_limit_error', 'code' => 'concurrency_limit_exceeded', 'message' => 'busy']], 429, ['Retry-After' => '5'])
+            ->push($this->remote($g, 'queued'), 202)]);
+        (new SubmitGeneration($g->id))->handle(app(PixelforgeClient::class), app(GenerationSync::class));
+        (new SubmitGeneration($g->id))->handle(app(PixelforgeClient::class), app(GenerationSync::class));
+
+        $headers = ['HTTP_PIXELFORGE_DELIVERY_ATTEMPT' => '2', 'REMOTE_ADDR' => '203.0.113.7'];
+        $body = json_encode(['id' => 'evt_9', 'object' => 'event', 'type' => 'generation.succeeded', 'created_at' => now()->toIso8601String(), 'data' => ['object' => $this->succeeded($g)]]);
+        foreach ([1, 2] as $_) {
+            $this->call('POST', '/webhooks/pixelforge', [], [], [], $headers + ['CONTENT_TYPE' => 'application/json', 'HTTP_PIXELFORGE_SIGNATURE' => WebhookSignature::sign($body, self::SECRET)], $body)->assertNoContent();
+        }
+
+        $log = PixelforgeActivity::where('generation_id', $g->id)->orderBy('id')->get();
+        $this->assertSame(['retryable_error', 'ok', 'processed', 'duplicate'], $log->pluck('outcome')->all());
+        $this->assertSame('concurrency_limit_exceeded', $log[0]->error_code);
+        $this->assertSame([1, 2], [$log[0]->attempt, $log[1]->attempt]);
+        $this->assertSame('203.0.113.7', $log[2]->ip);
+        $this->assertSame(2, $log[2]->attempt);
+        $this->assertStringContainsString('-> succeeded', $log[2]->detail);
+
+        $this->actingAs($user)->get("/admin/generations/{$g->id}")->assertInertia(fn ($page) => $page
+            ->component('Admin/Generation')->has('activity', 4)->where('summary.duplicates_ignored', 1)->where('summary.sender_ips', ['203.0.113.7']));
+
+        $this->withToken('pfs_admin')->getJson("/api/admin/generations/gen_{$g->id}")->assertOk()->assertJsonPath('summary.webhooks', 2);
+        $this->withToken('pfs_admin')->getJson('/api/admin/report?start_date='.now()->toDateString().'&end_date='.now()->toDateString())->assertOk()->assertJsonPath('totals.generations', 1);
+        $this->withToken('pfs_admin')->getJson('/api/admin/report/days/'.now()->utc()->toDateString())->assertOk()->assertJsonCount(1, 'generations');
+        $this->withToken('pfs_admin')->getJson('/api/admin/report/days/2026-02-31')->assertNotFound();
+        $this->flushHeaders()->getJson("/api/admin/generations/{$g->id}")->assertUnauthorized();
+
+        AdminServer::actingAs($user)->tool(GetGenerationTimeline::class, ['id' => (string) $g->id])
+            ->assertOk()->assertStructuredContentPath('summary.api_calls', 2);
     }
 }

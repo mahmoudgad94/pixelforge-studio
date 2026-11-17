@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { ChevronRight, LoaderCircle } from 'lucide-vue-next';
 import { computed, reactive, ref } from 'vue';
 
@@ -221,7 +221,7 @@ const stats = [
                                                     <span>·</span>
                                                     <span>{{ g.size }} {{ g.quality }}<template v-if="g.references">, {{ g.references }} ref</template></span>
                                                     <Badge v-if="g.status === 'failed'" variant="outline" class="h-5">Failed, free</Badge>
-                                                    <span class="font-mono">#{{ g.id }}<template v-if="g.pixelforge_id"> · {{ g.pixelforge_id }}</template></span>
+                                                    <Link :href="route('admin.generations.show', g.id)" class="font-mono underline-offset-4 hover:text-foreground hover:underline" title="Every API call and webhook for this generation">#{{ g.id }}<template v-if="g.pixelforge_id"> · {{ g.pixelforge_id }}</template> · timeline</Link>
                                                 </div>
                                                 <p class="truncate text-sm" :title="g.prompt">{{ g.prompt }}</p>
                                                 <p v-if="g.error" class="text-xs text-destructive">{{ g.error }}</p>
