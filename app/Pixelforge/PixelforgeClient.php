@@ -64,6 +64,8 @@ class PixelforgeClient
             'error_code' => is_string($code) ? $code : null,
             'duration_ms' => $ms(),
             'attempt' => $this->attempt,
+            // The Pixelforge server that answered (curl's primary_ip); empty for faked responses.
+            'ip' => ($response->handlerStats()['primary_ip'] ?? null) ?: null,
             'detail' => collect([
                 $retryAfter !== '' ? 'Retry-After '.$retryAfter : null,
                 $response->header('X-RateLimit-Remaining') !== '' ? 'rate limit left '.$response->header('X-RateLimit-Remaining') : null,

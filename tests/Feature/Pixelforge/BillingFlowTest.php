@@ -381,6 +381,7 @@ class BillingFlowTest extends TestCase
         $this->assertSame('concurrency_limit_exceeded', $log[0]->error_code);
         $this->assertSame([1, 2], [$log[0]->attempt, $log[1]->attempt]);
         $this->assertSame('203.0.113.7', $log[2]->ip);
+        $this->assertNull($log[0]->ip); // faked API responses carry no server IP; real ones store curl's primary_ip
         $this->assertSame(2, $log[2]->attempt);
         $this->assertStringContainsString('-> succeeded', $log[2]->detail);
 
