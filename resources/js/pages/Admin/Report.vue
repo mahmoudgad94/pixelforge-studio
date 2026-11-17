@@ -142,13 +142,13 @@ const stats = [
                 </div>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Card v-for="s in stats" :key="s.key">
+            <div class="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-[repeat(2,minmax(0,1fr))] lg:grid-cols-[repeat(4,minmax(0,1fr))]">
+                <Card v-for="s in stats" :key="s.key" class="min-w-0">
                     <CardHeader class="pb-2"
                         ><CardDescription>{{ s.label }}</CardDescription></CardHeader
                     >
                     <CardContent
-                        ><div class="text-2xl font-semibold tabular-nums">{{ s.prefix }}{{ totals[s.key] }}</div></CardContent
+                        ><div class="truncate text-2xl font-semibold tabular-nums" :title="s.prefix + totals[s.key]">{{ s.prefix }}{{ totals[s.key] }}</div></CardContent
                     >
                 </Card>
             </div>

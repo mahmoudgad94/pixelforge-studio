@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import StagingBadge from '@/components/StagingBadge.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -109,6 +110,7 @@ const rightNavItems: NavItem[] = [
 
                 <Link :href="route('home')" class="flex items-center gap-x-2">
                     <AppLogo class="hidden h-6 xl:block" />
+                    <StagingBadge />
                 </Link>
 
                 <!-- Desktop Menu -->

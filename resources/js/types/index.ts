@@ -18,6 +18,7 @@ export interface NavItem {
 
 export interface SharedData {
     name: string;
+    isStaging: boolean;
     inFlight?: number[];
     auth: Auth;
     ziggy: {

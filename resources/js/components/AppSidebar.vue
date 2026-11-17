@@ -8,6 +8,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { BarChart3, History, ShieldCheck, Sparkles } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
+import StagingBadge from './StagingBadge.vue';
 
 const page = usePage<SharedData>();
 
@@ -33,6 +34,7 @@ const footerNavItems: NavItem[] = [];
                     <SidebarMenuButton size="lg" as-child>
                         <Link :href="route('home')">
                             <AppLogo />
+                            <StagingBadge class="group-data-[collapsible=icon]:hidden" />
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -39,6 +39,8 @@ class HandleInertiaRequests extends Middleware
         return array_merge(parent::share($request), [
             ...parent::share($request),
             'name' => config('app.name'),
+            // True only when APP_ENV=staging, so the UI can flag the staging copy of the app.
+            'isStaging' => app()->environment('staging'),
             'auth' => [
                 'user' => $request->user(),
             ],
