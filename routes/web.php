@@ -25,6 +25,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('report', ReportController::class)->name('report');
+        Route::post('report/refresh', [ReportController::class, 'refresh'])->middleware('throttle:30,1')->name('report.refresh');
         Route::get('report/days/{date}', [ReportController::class, 'day'])->where('date', '\d{4}-\d{2}-\d{2}')->name('report.day');
         Route::get('generations/{generation}', GenerationTimelineController::class)->name('generations.show');
         Route::get('approvals', [ApprovalController::class, 'index'])->name('approvals.index');

@@ -28,12 +28,25 @@ const props = defineProps<{
     perUser: { date: string; user: string; generations: number; spend: string; cost: string; profit: string }[];
     totals: { generations: number; spend: string; cost: string; profit: string };
     usageError: string | null;
+    usageCheckedAt: string | null;
+    refreshThrottled: boolean;
+    refreshNotice: 'refreshed' | 'throttled' | null;
+    perUserPage: { page: number; last_page: number; per_page: number; total: number };
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Admin report', href: '/admin/report' }];
 const start = ref(props.start);
 const end = ref(props.end);
 const apply = () => router.get(route('admin.report'), { start: start.value, end: end.value }, { preserveState: true });
+const refreshing = ref(false);
+const refreshUsage = () =>
+    router.post(
+        route('admin.report.refresh'),
+        { start: props.start, end: props.end },
+        { preserveScroll: true, onStart: () => (refreshing.value = true), onFinish: () => (refreshing.value = false) },
+    );
+const goUsersPage = (page: number) =>
+    router.get(route('admin.report'), { start: props.start, end: props.end, users_page: page }, { preserveState: true, preserveScroll: true });
 
 // Quick ranges, in UTC days like Pixelforge billing.
 const utcDay = (offset: number) => new Date(Date.now() - offset * 86_400_000).toISOString().slice(0, 10);
@@ -76,22 +89,34 @@ type DayGeneration = {
     error: string | null;
     image_url: string | null;
 };
-const detail = reactive<Record<string, { loading: boolean; error: string | null; rows: DayGeneration[] }>>({});
+type DayState = { loading: boolean; error: string | null; rows: DayGeneration[]; page: number; lastPage: number; total: number };
+const detail = reactive<Record<string, DayState>>({});
+// Fetches one page (25) of a day and appends it, so "Load more" keeps what is already on screen.
+const loadDay = async (date: string, page: number) => {
+    const state = detail[date];
+    state.loading = true;
+    state.error = null;
+    try {
+        const res = await fetch(route('admin.report.day', { date, page }), { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        state.rows.push(...json.generations);
+        state.page = json.meta.page;
+        state.lastPage = json.meta.last_page;
+        state.total = json.meta.total;
+    } catch (e) {
+        state.error = e instanceof Error ? e.message : 'Could not load this day.';
+    } finally {
+        state.loading = false;
+    }
+};
 const toggleDay = async (date: string) => {
     if (detail[date]) {
         delete detail[date];
         return;
     }
-    detail[date] = { loading: true, error: null, rows: [] };
-    try {
-        const res = await fetch(route('admin.report.day', date), { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        detail[date].rows = (await res.json()).generations;
-    } catch (e) {
-        detail[date].error = e instanceof Error ? e.message : 'Could not load this day.';
-    } finally {
-        detail[date].loading = false;
-    }
+    detail[date] = { loading: true, error: null, rows: [], page: 0, lastPage: 1, total: 0 };
+    await loadDay(date, 1);
 };
 if (singleDay.value && props.days[0]?.generations) toggleDay(props.days[0].date);
 const tokenLabels = { input_text_tokens: 'text', input_image_tokens: 'image', output_tokens: 'output', reasoning_tokens: 'reasoning' } as const;
@@ -155,6 +180,16 @@ const stats = [
 
             <Alert v-if="usageError" variant="destructive">Could not load Pixelforge usage: {{ usageError }}</Alert>
 
+            <div class="flex flex-wrap items-center gap-3 text-sm text-muted-foreground" data-testid="usage-status">
+                <span v-if="usageCheckedAt" data-testid="usage-checked-at">usage checked at {{ usageCheckedAt }} UTC</span>
+                <Button size="sm" variant="outline" class="h-8" :disabled="refreshing" data-testid="usage-refresh" @click="refreshUsage">
+                    <LoaderCircle v-if="refreshing" class="size-3.5 animate-spin" /> Refresh
+                </Button>
+                <span v-if="refreshNotice === 'throttled' || refreshThrottled" data-testid="usage-refresh-throttled"
+                    >Refreshed a moment ago, showing that result.</span
+                >
+            </div>
+
             <Card>
                 <CardHeader>
                     <CardTitle class="text-base">Per day</CardTitle>
@@ -214,10 +249,10 @@ const stats = [
                                 </TableRow>
                                 <TableRow v-if="detail[d.date]" class="hover:bg-transparent">
                                     <TableCell :colspan="7" class="whitespace-normal bg-muted/40 p-3">
-                                        <div v-if="detail[d.date].loading" class="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+                                        <div v-if="detail[d.date].loading && detail[d.date].rows.length === 0" class="flex items-center gap-2 py-3 text-sm text-muted-foreground">
                                             <LoaderCircle class="size-4 animate-spin" /> Loading {{ d.date }}…
                                         </div>
-                                        <p v-else-if="detail[d.date].error" class="py-3 text-sm text-destructive">
+                                        <p v-else-if="detail[d.date].error && detail[d.date].rows.length === 0" class="py-3 text-sm text-destructive">
                                             Could not load this day: {{ detail[d.date].error }}
                                         </p>
                                         <ul v-else class="grid gap-2">
@@ -227,9 +262,9 @@ const stats = [
                                                 class="flex flex-col gap-3 rounded-md border bg-background p-3 sm:flex-row"
                                                 :class="g.status === 'failed' ? 'opacity-75' : ''"
                                             >
-                                                <a v-if="g.image_url" :href="g.image_url" target="_blank" rel="noopener" class="shrink-0">
+                                                <Link v-if="g.image_url" :href="route('admin.generations.show', g.id)" class="shrink-0" title="Open this generation">
                                                     <img :src="g.image_url" :alt="g.prompt" loading="lazy" class="size-16 rounded object-cover" />
-                                                </a>
+                                                </Link>
                                                 <div v-else class="hidden size-16 shrink-0 rounded bg-muted sm:block" />
                                                 <div class="min-w-0 flex-1 space-y-1">
                                                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -270,8 +305,23 @@ const stats = [
                                                     <dd>{{ g.profit }}</dd>
                                                 </dl>
                                             </li>
-                                            <li v-if="detail[d.date].rows.length === 0" class="py-3 text-sm text-muted-foreground">
+                                            <li v-if="!detail[d.date].loading && detail[d.date].rows.length === 0" class="py-3 text-sm text-muted-foreground">
                                                 Nothing finished on this day.
+                                            </li>
+                                            <li v-if="detail[d.date].page < detail[d.date].lastPage" class="flex items-center gap-3 pt-1">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    :disabled="detail[d.date].loading"
+                                                    data-testid="day-load-more"
+                                                    @click="loadDay(d.date, detail[d.date].page + 1)"
+                                                >
+                                                    <LoaderCircle v-if="detail[d.date].loading" class="size-3.5 animate-spin" /> Load more
+                                                </Button>
+                                                <span v-if="detail[d.date].error" class="text-xs text-destructive">{{ detail[d.date].error }}</span>
+                                                <span class="text-xs text-muted-foreground"
+                                                    >{{ detail[d.date].rows.length }} of {{ detail[d.date].total }}</span
+                                                >
                                             </li>
                                         </ul>
                                     </TableCell>
@@ -320,6 +370,13 @@ const stats = [
                             </TableRow>
                         </TableBody>
                     </Table>
+                    <div v-if="perUserPage.last_page > 1" class="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground" data-testid="user-pager">
+                        <span>Page {{ perUserPage.page }} of {{ perUserPage.last_page }} ({{ perUserPage.total }} rows)</span>
+                        <span class="flex gap-2">
+                            <Button size="sm" variant="outline" class="h-7" :disabled="perUserPage.page <= 1" @click="goUsersPage(perUserPage.page - 1)">Previous</Button>
+                            <Button size="sm" variant="outline" class="h-7" :disabled="perUserPage.page >= perUserPage.last_page" @click="goUsersPage(perUserPage.page + 1)">Next</Button>
+                        </span>
+                    </div>
                 </CardContent>
             </Card>
         </div>
