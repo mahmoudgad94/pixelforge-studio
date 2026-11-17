@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { network } from '@/lib/network';
 import { router, usePage } from '@inertiajs/vue3';
 import { CircleAlert, CircleCheck, X } from 'lucide-vue-next';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -52,6 +53,8 @@ function notify(ok: boolean, u: Update) {
 }
 
 async function poll() {
+    // Offline: nothing to ask. The watcher on network.online polls right away when the connection is back.
+    if (!network.online) return;
     if (document.visibilityState === 'hidden' && !('Notification' in window && Notification.permission === 'granted')) {
         // Nobody can see a toast and we may not notify: check again later, cheaply.
         return schedule(10000);
@@ -79,6 +82,10 @@ async function poll() {
 }
 
 const onVisible = () => document.visibilityState === 'visible' && schedule(0);
+watch(
+    () => network.online,
+    (online) => online && schedule(0),
+);
 onMounted(() => document.addEventListener('visibilitychange', onVisible));
 onBeforeUnmount(() => {
     clearTimeout(timer);

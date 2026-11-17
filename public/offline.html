@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Offline - Pixelforge Studio</title>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <style>
+            :root {
+                --bg: #fafafa;
+                --fg: #0a0a0a;
+                --muted: #737373;
+                --card: #ffffff;
+                --border: #e5e5e5;
+                --accent: #0a0a0a;
+                --accent-fg: #fafafa;
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #0a0a0a;
+                    --fg: #fafafa;
+                    --muted: #a3a3a3;
+                    --card: #171717;
+                    --border: #262626;
+                    --accent: #fafafa;
+                    --accent-fg: #0a0a0a;
+                }
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                min-height: 100vh;
+                display: grid;
+                place-items: center;
+                padding: 16px;
+                background: var(--bg);
+                color: var(--fg);
+                font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+            }
+            main {
+                width: 100%;
+                max-width: 26rem;
+                padding: 2rem;
+                border: 1px solid var(--border);
+                border-radius: 0.75rem;
+                background: var(--card);
+                text-align: center;
+            }
+            img {
+                width: 2.5rem;
+                height: 2.5rem;
+            }
+            h1 {
+                margin: 1rem 0 0.5rem;
+                font-size: 1.25rem;
+            }
+            p {
+                margin: 0 0 1.5rem;
+                color: var(--muted);
+                line-height: 1.5;
+            }
+            button {
+                padding: 0.6rem 1.2rem;
+                border: 0;
+                border-radius: 0.5rem;
+                background: var(--accent);
+                color: var(--accent-fg);
+                font: inherit;
+                font-weight: 500;
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <img src="/favicon.svg" alt="" />
+            <h1>You are offline</h1>
+            <p>
+                Pixelforge Studio needs a connection to show your balance and images. Nothing was charged. This page reloads by itself when you are
+                back online.
+            </p>
+            <button type="button" onclick="location.reload()">Try again</button>
+        </main>
+        <script>
+            window.addEventListener('online', () => location.reload());
+        </script>
+    </body>
+</html>

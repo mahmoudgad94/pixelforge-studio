@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { network } from '@/lib/network';
 import { estimate, formatUsd, type PricingTable } from '@/lib/pricing';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/vue3';
@@ -238,10 +239,15 @@ function submit() {
                         <span class="text-sm text-muted-foreground">
                             About <span class="font-medium text-foreground">{{ formatUsd(est.expected.price) }}</span>
                         </span>
-                        <Button type="submit" size="lg" :disabled="form.processing || !form.prompt.trim() || !canAfford">
+                        <Button
+                            type="submit"
+                            size="lg"
+                            :disabled="form.processing || !form.prompt.trim() || !canAfford || !network.online"
+                            :title="network.online ? undefined : 'You are offline. Your prompt is kept; send it when you are back online.'"
+                        >
                             <LoaderCircle v-if="form.processing" class="size-4 animate-spin" />
                             <Sparkles v-else class="size-4" />
-                            Generate
+                            {{ network.online ? 'Generate' : 'Offline' }}
                         </Button>
                     </CardFooter>
                 </form>

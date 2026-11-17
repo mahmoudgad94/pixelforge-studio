@@ -11,6 +11,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { network } from '@/lib/network';
 import { formatUsd } from '@/lib/pricing';
 import { useForm } from '@inertiajs/vue3';
 import { LoaderCircle, ShieldCheck } from 'lucide-vue-next';
@@ -82,10 +83,11 @@ function confirm() {
 
             <DialogFooter class="gap-2">
                 <DialogClose as-child><Button variant="outline" :disabled="form.processing">Cancel</Button></DialogClose>
-                <Button :disabled="form.processing" @click="confirm">
+                <Button :disabled="form.processing || !network.online" @click="confirm">
                     <LoaderCircle v-if="form.processing" class="size-4 animate-spin" />
                     <ShieldCheck v-else class="size-4" />
-                    Confirm ${{ form.amount }} purchase
+                    <template v-if="network.online">Confirm ${{ form.amount }} purchase</template>
+                    <template v-else>Offline, try when back online</template>
                 </Button>
             </DialogFooter>
         </DialogContent>

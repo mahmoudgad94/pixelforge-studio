@@ -6,6 +6,8 @@ import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
 import AuthorBanner from '@/components/AuthorBanner.vue';
 import FlashToast from '@/components/FlashToast.vue';
 import GenerationWatcher from '@/components/GenerationWatcher.vue';
+import PageSkeleton from '@/components/PageSkeleton.vue';
+import { network } from '@/lib/network';
 import type { BreadcrumbItemType } from '@/types';
 
 interface Props {
@@ -23,7 +25,9 @@ withDefaults(defineProps<Props>(), {
         <AppContent variant="sidebar">
             <AuthorBanner class="rounded-t-xl" />
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
-            <slot />
+            <!-- While another page loads, its skeleton replaces the content; the sidebar and header stay put. -->
+            <PageSkeleton v-if="network.navigatingTo" :path="network.navigatingTo" />
+            <div v-show="!network.navigatingTo" class="contents"><slot /></div>
         </AppContent>
         <FlashToast />
         <GenerationWatcher />

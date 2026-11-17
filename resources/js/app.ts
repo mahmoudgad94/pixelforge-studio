@@ -5,7 +5,9 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
+import ConnectionStatus from './components/ConnectionStatus.vue';
 import { initializeTheme } from './composables/useAppearance';
+import { installNetworkHandling, registerServiceWorker } from './lib/network';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -26,7 +28,7 @@ createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolvePageComponent(`./pages/${name}.vue`, import.meta.glob<DefineComponent>('./pages/**/*.vue')),
     setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) })
+        createApp({ render: () => [h(App, props), h(ConnectionStatus)] })
             .use(plugin)
             .use(ZiggyVue)
             .mount(el);
@@ -38,3 +40,7 @@ createInertiaApp({
 
 // This will set light / dark mode on page load...
 initializeTheme();
+
+// Offline banner, friendly request errors, skeletons between pages, offline fallback page.
+installNetworkHandling();
+registerServiceWorker();
