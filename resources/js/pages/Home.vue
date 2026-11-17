@@ -69,7 +69,7 @@ const guarantees = [
         />
     </Head>
 
-    <div class="min-h-svh bg-background text-foreground">
+    <div class="min-h-svh overflow-x-hidden bg-background text-foreground">
         <AuthorBanner />
 
         <header class="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 md:px-6">
@@ -79,10 +79,13 @@ const guarantees = [
                 /></span>
                 Pixelforge Studio
             </Link>
-            <Button v-if="page.props.auth.user" as-child size="sm"
-                ><Link :href="route('generations.create')">Open studio <ArrowRight class="size-4" /></Link
-            ></Button>
-            <Button v-else as-child size="sm" variant="outline"><Link :href="route('login')">Sign in</Link></Button>
+            <div class="flex items-center gap-2">
+                <Button as-child size="sm" variant="ghost"><Link :href="route('guide')">Product tour</Link></Button>
+                <Button v-if="page.props.auth.user" as-child size="sm"
+                    ><Link :href="route('generations.create')">Open studio <ArrowRight class="size-4" /></Link
+                ></Button>
+                <Button v-else as-child size="sm" variant="outline"><Link :href="route('login')">Sign in</Link></Button>
+            </div>
         </header>
 
         <main>

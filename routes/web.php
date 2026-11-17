@@ -11,6 +11,7 @@ use App\Http\Controllers\ReferenceImageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+Route::inertia('guide', 'Guide')->name('guide');
 
 Route::middleware(['auth'])->group(function () {
     Route::redirect('dashboard', '/generate')->name('dashboard');
