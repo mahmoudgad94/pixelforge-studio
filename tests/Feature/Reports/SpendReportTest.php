@@ -77,4 +77,27 @@ class SpendReportTest extends TestCase
 
         $this->actingAs($admin)->get('/admin/report?start=garbage&end=1')->assertOk();
     }
+
+    public function test_a_day_lists_its_generations_with_exact_numbers_and_free_failures(): void
+    {
+        $ok = $this->succeeded('2026-11-10 12:00:00');
+        $failed = Generation::create([...$ok->only(['user_id', 'size', 'quality', 'reference_images', 'hold_picos', 'estimated_min_price_picos', 'estimated_price_picos', 'estimated_max_price_picos']),
+            'uuid' => (string) Str::uuid(), 'prompt' => 'broken', 'status' => Generation::FAILED, 'error_message' => 'nope', 'completed_at' => '2026-11-10 13:00:00']);
+        $this->succeeded('2026-11-11 12:00:00'); // another day, not listed
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $json = $this->actingAs($admin)->getJson('/admin/report/days/2026-11-10')->assertOk()->json('generations');
+
+        $this->assertSame([$failed->id, $ok->id], array_column($json, 'id'));
+        $this->assertSame('0.056560000', $json[1]['cost']);
+        $this->assertSame(1000, $json[1]['tokens']['reasoning_tokens']);
+        $this->assertSame('0.000000000', $json[0]['cost']);
+        $this->assertSame('nope', $json[0]['error']);
+    }
+
+    public function test_day_detail_is_admin_only_and_rejects_bad_dates(): void
+    {
+        $this->actingAs(User::factory()->create())->getJson('/admin/report/days/2026-11-10')->assertForbidden();
+        $this->actingAs(User::factory()->create(['is_admin' => true]))->getJson('/admin/report/days/2026-02-30')->assertNotFound();
+    }
 }

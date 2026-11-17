@@ -22,6 +22,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('report', ReportController::class)->name('report');
+        Route::get('report/days/{date}', [ReportController::class, 'day'])->where('date', '\d{4}-\d{2}-\d{2}')->name('report.day');
         Route::get('approvals', [ApprovalController::class, 'index'])->name('approvals.index');
         Route::post('approvals/{action}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
         Route::post('approvals/{action}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');

@@ -108,6 +108,51 @@ class SpendReport
         ];
     }
 
+    /**
+     * Everything that finished on one UTC day, newest first: billed (succeeded) generations
+     * with their exact numbers, and failed ones, which cost nothing.
+     */
+    public function dayDetail(string $date): ?array
+    {
+        $day = $this->day($date);
+        if (! $day) {
+            return null;
+        }
+
+        return Generation::query()
+            ->with('user:id,name,email')
+            ->whereIn('status', [Generation::SUCCEEDED, Generation::FAILED])
+            ->whereBetween('completed_at', [$day, $day->copy()->endOfDay()])
+            ->latest('completed_at')
+            ->limit(500)
+            ->get()
+            ->map(function (Generation $g) {
+                $billed = $g->status === Generation::SUCCEEDED;
+                $expired = $g->image_url_expires_at !== null && $g->image_url_expires_at->isPast();
+
+                return [
+                    'id' => $g->id,
+                    'pixelforge_id' => $g->pixelforge_id,
+                    'completed_at' => $g->completed_at->copy()->utc()->format('H:i:s'),
+                    'user' => $g->user?->name,
+                    'email' => $g->user?->email,
+                    'status' => $g->status,
+                    'prompt' => $g->prompt,
+                    'size' => $g->size,
+                    'quality' => $g->quality,
+                    'references' => count($g->reference_images ?? []),
+                    'tokens' => $billed ? array_intersect_key($g->usage ?? [], array_flip(self::TOKENS)) : null,
+                    'estimate' => Money::format($g->estimated_price_picos),
+                    'cost' => $billed ? Money::toUsdString($g->provider_cost_picos, 9) : '0.000000000',
+                    'spend' => $billed ? Money::format($g->price_picos) : '$0.00',
+                    'profit' => $billed ? Money::format($g->price_picos - $g->provider_cost_picos) : '$0.00',
+                    'error' => $billed ? null : $g->error_message,
+                    'image_url' => $billed && ! $expired ? $g->image_url : null,
+                ];
+            })
+            ->all();
+    }
+
     /** A strict Y-m-d date in UTC, or null for anything else (garbage falls back to the default range). */
     private function day(?string $value): ?Carbon
     {

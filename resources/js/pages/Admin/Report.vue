@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { ChevronRight, LoaderCircle } from 'lucide-vue-next';
+import { computed, reactive, ref } from 'vue';
 
 const props = defineProps<{
     start: string;
@@ -55,6 +56,46 @@ const showEmpty = ref(false);
 const isEmpty = (d: (typeof props.days)[number]) => d.generations === 0 && !d.pixelforge_generations;
 const visibleDays = computed(() => (showEmpty.value ? props.days : props.days.filter((d) => !isEmpty(d))));
 const emptyCount = computed(() => props.days.filter(isEmpty).length);
+// Open a day to see the generations inside it. Loaded on demand so long ranges stay fast.
+type DayGeneration = {
+    id: number;
+    pixelforge_id: string | null;
+    completed_at: string;
+    user: string | null;
+    email: string | null;
+    status: 'succeeded' | 'failed';
+    prompt: string;
+    size: string;
+    quality: string;
+    references: number;
+    tokens: Record<'input_text_tokens' | 'input_image_tokens' | 'output_tokens' | 'reasoning_tokens', number> | null;
+    estimate: string;
+    cost: string;
+    spend: string;
+    profit: string;
+    error: string | null;
+    image_url: string | null;
+};
+const detail = reactive<Record<string, { loading: boolean; error: string | null; rows: DayGeneration[] }>>({});
+const toggleDay = async (date: string) => {
+    if (detail[date]) {
+        delete detail[date];
+        return;
+    }
+    detail[date] = { loading: true, error: null, rows: [] };
+    try {
+        const res = await fetch(route('admin.report.day', date), { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        detail[date].rows = (await res.json()).generations;
+    } catch (e) {
+        detail[date].error = e instanceof Error ? e.message : 'Could not load this day.';
+    } finally {
+        detail[date].loading = false;
+    }
+};
+if (singleDay.value && props.days[0]?.generations) toggleDay(props.days[0].date);
+const tokenLabels = { input_text_tokens: 'text', input_image_tokens: 'image', output_tokens: 'output', reasoning_tokens: 'reasoning' } as const;
+
 const stats = [
     { label: 'Generations', key: 'generations' as const, prefix: '' },
     { label: 'Credit spend', key: 'spend' as const, prefix: '' },
@@ -72,7 +113,7 @@ const stats = [
                 <div>
                     <h1 class="text-xl font-semibold tracking-tight">Admin report</h1>
                     <p class="text-sm text-muted-foreground">
-                        <template v-if="singleDay">Showing {{ start }} (UTC). </template>Days are the UTC day a generation completed, like Pixelforge billing. Click a day to see it alone.
+                        <template v-if="singleDay">Showing {{ start }} (UTC). </template>Days are the UTC day a generation completed, like Pixelforge billing. Click a day to see the generations inside it.
                     </p>
                 </div>
                 <div class="flex flex-wrap items-end gap-3">
@@ -120,9 +161,29 @@ const stats = [
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow v-for="d in visibleDays" :key="d.date" :class="isEmpty(d) ? 'text-muted-foreground' : ''">
+                            <template v-for="d in visibleDays" :key="d.date">
+                            <TableRow
+                                :class="[isEmpty(d) ? 'text-muted-foreground' : '', d.generations ? 'cursor-pointer' : '']"
+                                @click="d.generations && toggleDay(d.date)"
+                            >
                                 <TableCell class="font-mono text-xs">
-                                    <button type="button" class="underline-offset-4 hover:underline" @click="pick(d.date, d.date)">{{ d.date }}</button>
+                                    <span class="inline-flex items-center gap-1">
+                                        <ChevronRight
+                                            v-if="d.generations"
+                                            class="size-3.5 transition-transform"
+                                            :class="detail[d.date] ? 'rotate-90' : ''"
+                                            aria-hidden="true"
+                                        />
+                                        <button
+                                            type="button"
+                                            class="underline-offset-4 hover:underline"
+                                            :aria-expanded="!!detail[d.date]"
+                                            :disabled="!d.generations"
+                                            @click.stop="toggleDay(d.date)"
+                                        >
+                                            {{ d.date }}
+                                        </button>
+                                    </span>
                                 </TableCell>
                                 <TableCell class="text-right tabular-nums">{{ d.generations }}</TableCell>
                                 <TableCell class="text-right tabular-nums">{{ d.spend }}</TableCell>
@@ -135,6 +196,51 @@ const stats = [
                                     <span v-else class="text-muted-foreground">–</span>
                                 </TableCell>
                             </TableRow>
+                            <TableRow v-if="detail[d.date]" class="hover:bg-transparent">
+                                <TableCell :colspan="7" class="bg-muted/40 p-3 whitespace-normal">
+                                    <div v-if="detail[d.date].loading" class="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+                                        <LoaderCircle class="size-4 animate-spin" /> Loading {{ d.date }}…
+                                    </div>
+                                    <p v-else-if="detail[d.date].error" class="py-3 text-sm text-destructive">Could not load this day: {{ detail[d.date].error }}</p>
+                                    <ul v-else class="grid gap-2">
+                                        <li
+                                            v-for="g in detail[d.date].rows"
+                                            :key="g.id"
+                                            class="flex flex-col gap-3 rounded-md border bg-background p-3 sm:flex-row"
+                                            :class="g.status === 'failed' ? 'opacity-75' : ''"
+                                        >
+                                            <a v-if="g.image_url" :href="g.image_url" target="_blank" rel="noopener" class="shrink-0">
+                                                <img :src="g.image_url" :alt="g.prompt" loading="lazy" class="size-16 rounded object-cover" />
+                                            </a>
+                                            <div v-else class="hidden size-16 shrink-0 rounded bg-muted sm:block" />
+                                            <div class="min-w-0 flex-1 space-y-1">
+                                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                                                    <span class="font-mono">{{ g.completed_at }} UTC</span>
+                                                    <span>·</span>
+                                                    <span :title="g.email ?? ''">{{ g.user }}</span>
+                                                    <span>·</span>
+                                                    <span>{{ g.size }} {{ g.quality }}<template v-if="g.references">, {{ g.references }} ref</template></span>
+                                                    <Badge v-if="g.status === 'failed'" variant="outline" class="h-5">Failed, free</Badge>
+                                                    <span class="font-mono">#{{ g.id }}<template v-if="g.pixelforge_id"> · {{ g.pixelforge_id }}</template></span>
+                                                </div>
+                                                <p class="truncate text-sm" :title="g.prompt">{{ g.prompt }}</p>
+                                                <p v-if="g.error" class="text-xs text-destructive">{{ g.error }}</p>
+                                                <p v-if="g.tokens" class="text-xs text-muted-foreground tabular-nums">
+                                                    <template v-for="(label, key, i) in tokenLabels" :key="key"><template v-if="i">, </template>{{ g.tokens[key] ?? 0 }} {{ label }}</template> tokens
+                                                </p>
+                                            </div>
+                                            <dl class="grid shrink-0 grid-cols-[auto_auto] gap-x-3 text-xs tabular-nums sm:text-right">
+                                                <dt class="text-muted-foreground">Estimate</dt><dd>{{ g.estimate }}</dd>
+                                                <dt class="text-muted-foreground">Charged</dt><dd class="font-medium">{{ g.spend }}</dd>
+                                                <dt class="text-muted-foreground">Cost</dt><dd class="font-mono">${{ g.cost }}</dd>
+                                                <dt class="text-muted-foreground">Profit</dt><dd>{{ g.profit }}</dd>
+                                            </dl>
+                                        </li>
+                                        <li v-if="detail[d.date].rows.length === 0" class="py-3 text-sm text-muted-foreground">Nothing finished on this day.</li>
+                                    </ul>
+                                </TableCell>
+                            </TableRow>
+                            </template>
                             <TableRow v-if="visibleDays.length === 0">
                                 <TableCell :colspan="7" class="py-10 text-center text-muted-foreground">No generations completed in this range.</TableCell>
                             </TableRow>
