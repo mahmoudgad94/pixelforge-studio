@@ -162,6 +162,62 @@ class BillingFlowTest extends TestCase
         $this->assertSame(Generation::PROCESSING, $g->status);
     }
 
+    /**
+     * Pixelforge accepted the request but our side lost the answer (crash or DB error right after
+     * the POST): the row is still pending with no Pixelforge id. The webhook still finds it by our
+     * own uuid in metadata, settles the charge once, and a later retry of the lost job does nothing.
+     */
+    public function test_accepted_but_not_recorded_then_webhook_arrives_charges_once(): void
+    {
+        $user = $this->userWithCredits();
+        $g = $this->createGeneration($user);
+        $this->assertNull($g->pixelforge_id);
+
+        $this->sendWebhook('evt_lost_1', 'generation.succeeded', $this->succeeded($g));
+
+        $g->refresh();
+        $this->assertSame(Generation::SUCCEEDED, $g->status);
+        $this->assertSame('gen_'.$g->id, $g->pixelforge_id);
+        $this->assertSame(Money::fromUsd('10') - $g->price_picos, $user->fresh()->balance_picos);
+
+        // The reconciler or the queue retries the lost job: it sees the generation is no longer pending.
+        Http::fake();
+        $this->travel(6)->minutes();
+        $this->artisan('generations:reconcile')->assertSuccessful();
+        Queue::assertPushed(SubmitGeneration::class, 1); // only the original submit, nothing re-dispatched
+        (new SubmitGeneration($g->id))->handle(app(PixelforgeClient::class), app(GenerationSync::class));
+        Http::assertNothingSent();
+        $this->assertSame(Money::fromUsd('10') - $g->price_picos, $user->fresh()->balance_picos);
+        $this->assertSame(1, Generation::count());
+    }
+
+    /**
+     * Same loss, but no webhook yet: after 5 minutes the reconciler sends it again with the same
+     * Idempotency-Key, Pixelforge replays the original generation (no second image, no second
+     * charge), and the webhook then settles it once.
+     */
+    public function test_accepted_but_not_recorded_is_recovered_by_the_reconciler_without_a_duplicate(): void
+    {
+        $user = $this->userWithCredits();
+        $g = $this->createGeneration($user);
+
+        $this->travel(6)->minutes();
+        $this->artisan('generations:reconcile')->assertSuccessful();
+        Queue::assertPushed(SubmitGeneration::class, 2); // the original submit and the reconciler re-dispatch
+
+        Http::fake(['*/v1/generations' => Http::response($this->remote($g, 'processing'), 200, ['Idempotent-Replayed' => 'true'])]);
+        (new SubmitGeneration($g->id))->handle(app(PixelforgeClient::class), app(GenerationSync::class));
+        Http::assertSent(fn ($r) => $r->hasHeader('Idempotency-Key', $g->uuid));
+
+        $this->sendWebhook('evt_lost_2', 'generation.succeeded', $this->succeeded($g));
+        $this->sendWebhook('evt_lost_2', 'generation.succeeded', $this->succeeded($g)); // duplicate delivery
+
+        $g->refresh();
+        $this->assertSame(Generation::SUCCEEDED, $g->status);
+        $this->assertSame(Money::fromUsd('10') - $g->price_picos, $user->fresh()->balance_picos);
+        $this->assertSame(1, Generation::count());
+    }
+
     public function test_failed_generation_is_free(): void
     {
         $user = $this->userWithCredits();
