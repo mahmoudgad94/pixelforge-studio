@@ -1,5 +1,9 @@
 {
-	frankenphp
+	# A fixed thread count: each PHP thread can hold one persistent database connection,
+	# and the default (2 per CPU) can exceed what the database allows on a large host.
+	frankenphp {
+		num_threads {$FRANKENPHP_THREADS:16}
+	}
 	order php_server before file_server
 }
 

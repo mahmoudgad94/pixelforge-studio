@@ -93,8 +93,13 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode' => 'prefer',
+            // Sent in the connection string rather than as a "set search_path" query after connecting,
+            // which saves a round trip on every new connection.
+            'server_options' => ['search_path' => 'public'],
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Keeps the connection open between requests. Where the database is a network hop away
+            // (Railway's private network), opening a new one costs over a second per page.
+            'options' => extension_loaded('pdo_pgsql') ? [PDO::ATTR_PERSISTENT => (bool) env('DB_PERSISTENT', false)] : [],
         ],
 
         'sqlsrv' => [
