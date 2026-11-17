@@ -94,14 +94,21 @@ onBeforeUnmount(() => {
         leave-active-class="transition duration-150 ease-in"
         leave-to-class="translate-y-2 opacity-0"
     >
-        <div v-if="toast" role="status" aria-live="polite" class="fixed bottom-20 right-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border bg-background px-4 py-3 text-sm shadow-lg">
+        <div
+            v-if="toast"
+            role="status"
+            aria-live="polite"
+            class="fixed bottom-20 right-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border bg-background px-4 py-3 text-sm shadow-lg"
+        >
             <CircleCheck v-if="toast.ok" class="mt-0.5 size-4 shrink-0 text-emerald-600" />
             <CircleAlert v-else class="mt-0.5 size-4 shrink-0 text-destructive" />
             <button type="button" class="text-left" @click="router.visit(route('generations.index'))">
                 <div class="font-medium">{{ toast.title }}</div>
                 <div class="line-clamp-2 text-muted-foreground">{{ toast.body }}</div>
             </button>
-            <button type="button" class="ml-1 text-muted-foreground hover:text-foreground" aria-label="Dismiss" @click="toast = null"><X class="size-4" /></button>
+            <button type="button" class="ml-1 text-muted-foreground hover:text-foreground" aria-label="Dismiss" @click="toast = null">
+                <X class="size-4" />
+            </button>
         </div>
     </Transition>
 </template>

@@ -56,7 +56,10 @@ const testKeywords = [
 ];
 function toggleKeyword(tag: string) {
     form.prompt = form.prompt.includes(tag)
-        ? form.prompt.replace(tag, '').replace(/\s{2,}/g, ' ').trim()
+        ? form.prompt
+              .replace(tag, '')
+              .replace(/\s{2,}/g, ' ')
+              .trim()
         : `${form.prompt.trimEnd()} ${tag}`.trim();
 }
 
@@ -99,7 +102,6 @@ function submit() {
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
     form.transform((data) => ({ ...data, reference_images: refs.value })).post(route('generations.store'), { preserveScroll: true });
 }
-
 </script>
 
 <template>
@@ -147,7 +149,12 @@ function submit() {
                         <div class="grid gap-6">
                             <div class="grid gap-2">
                                 <Label>Size</Label>
-                                <ToggleGroup class="grid w-full grid-cols-3" type="single" :model-value="form.size" @update:model-value="(v) => v && (form.size = v as string)">
+                                <ToggleGroup
+                                    class="grid w-full grid-cols-3"
+                                    type="single"
+                                    :model-value="form.size"
+                                    @update:model-value="(v) => v && (form.size = v as string)"
+                                >
                                     <ToggleGroupItem v-for="s in sizes" :key="s" :value="s" :aria-label="s">
                                         <component :is="sizeMeta[s]?.icon" class="size-4" />
                                         {{ sizeMeta[s]?.label ?? s }}
@@ -159,7 +166,12 @@ function submit() {
 
                             <div class="grid gap-2">
                                 <Label>Quality</Label>
-                                <ToggleGroup class="grid w-full grid-cols-3" type="single" :model-value="form.quality" @update:model-value="(v) => v && (form.quality = v as string)">
+                                <ToggleGroup
+                                    class="grid w-full grid-cols-3"
+                                    type="single"
+                                    :model-value="form.quality"
+                                    @update:model-value="(v) => v && (form.quality = v as string)"
+                                >
                                     <ToggleGroupItem v-for="q in qualities" :key="q" :value="q" class="capitalize">{{ q }}</ToggleGroupItem>
                                 </ToggleGroup>
                                 <InputError :message="form.errors.quality" />
@@ -172,11 +184,25 @@ function submit() {
                             <div class="flex items-center justify-between">
                                 <div>
                                     <Label>Reference images</Label>
-                                    <p class="text-xs text-muted-foreground">Optional, up to 4. Upload from your device or paste a link. Each adds 765 tokens.</p>
+                                    <p class="text-xs text-muted-foreground">
+                                        Optional, up to 4. Upload from your device or paste a link. Each adds 765 tokens.
+                                    </p>
                                 </div>
                                 <div class="flex gap-2">
-                                    <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" @change="upload" />
-                                    <Button type="button" variant="outline" size="sm" :disabled="form.reference_images.length >= 4 || uploading" @click="fileInput?.click()">
+                                    <input
+                                        ref="fileInput"
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp,image/gif"
+                                        class="hidden"
+                                        @change="upload"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        :disabled="form.reference_images.length >= 4 || uploading"
+                                        @click="fileInput?.click()"
+                                    >
                                         <LoaderCircle v-if="uploading" class="size-4 animate-spin" /><Upload v-else class="size-4" /> Upload
                                     </Button>
                                     <Button
@@ -236,17 +262,30 @@ function submit() {
                     <CardHeader class="pb-3">
                         <CardDescription>Estimated price</CardDescription>
                         <CardTitle class="text-3xl tabular-nums" data-testid="estimated-price">{{ formatUsd(est.expected.price) }}</CardTitle>
-                        <p class="text-sm text-muted-foreground tabular-nums">
-                            {{ formatUsd(est.min.price) }} to {{ formatUsd(est.max.price) }}
-                        </p>
+                        <p class="text-sm tabular-nums text-muted-foreground">{{ formatUsd(est.min.price) }} to {{ formatUsd(est.max.price) }}</p>
                     </CardHeader>
                     <CardContent class="space-y-4 text-sm">
                         <dl class="space-y-1.5 text-muted-foreground">
-                            <div class="flex justify-between"><dt>Prompt</dt><dd class="tabular-nums">{{ est.tokens.textMin }} to {{ est.tokens.textMax }} tokens</dd></div>
-                            <div class="flex justify-between"><dt>Reference images</dt><dd class="tabular-nums">{{ est.tokens.images }} tokens</dd></div>
-                            <div class="flex justify-between"><dt>Image output</dt><dd class="tabular-nums">{{ est.tokens.output }} tokens</dd></div>
-                            <div class="flex justify-between"><dt>Reasoning</dt><dd class="tabular-nums">{{ est.tokens.reasoningMin }} to {{ est.tokens.reasoningMax }} tokens</dd></div>
-                            <div class="flex justify-between"><dt>Service fee</dt><dd>{{ markupPercent }}%</dd></div>
+                            <div class="flex justify-between">
+                                <dt>Prompt</dt>
+                                <dd class="tabular-nums">{{ est.tokens.textMin }} to {{ est.tokens.textMax }} tokens</dd>
+                            </div>
+                            <div class="flex justify-between">
+                                <dt>Reference images</dt>
+                                <dd class="tabular-nums">{{ est.tokens.images }} tokens</dd>
+                            </div>
+                            <div class="flex justify-between">
+                                <dt>Image output</dt>
+                                <dd class="tabular-nums">{{ est.tokens.output }} tokens</dd>
+                            </div>
+                            <div class="flex justify-between">
+                                <dt>Reasoning</dt>
+                                <dd class="tabular-nums">{{ est.tokens.reasoningMin }} to {{ est.tokens.reasoningMax }} tokens</dd>
+                            </div>
+                            <div class="flex justify-between">
+                                <dt>Service fee</dt>
+                                <dd>{{ markupPercent }}%</dd>
+                            </div>
                         </dl>
                         <Separator />
                         <p class="text-xs leading-relaxed text-muted-foreground">

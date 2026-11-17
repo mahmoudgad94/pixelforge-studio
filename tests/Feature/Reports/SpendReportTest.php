@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Reports;
 
+use App\Mcp\AdminServer;
+use App\Mcp\Tools\GetDayGenerations;
 use App\Models\Generation;
 use App\Models\User;
 use App\Reports\SpendReport;
@@ -106,12 +108,12 @@ class SpendReportTest extends TestCase
         $ok = $this->succeeded('2026-11-10 12:00:00');
         $admin = User::factory()->create(['is_admin' => true]);
 
-        \App\Mcp\AdminServer::actingAs($admin)->tool(\App\Mcp\Tools\GetDayGenerations::class, ['date' => '2026-11-10'])
+        AdminServer::actingAs($admin)->tool(GetDayGenerations::class, ['date' => '2026-11-10'])
             ->assertOk()
             ->assertStructuredContentPath('count', 1)
             ->assertStructuredContentPath('generations.0.id', $ok->id)
             ->assertStructuredContentPath('generations.0.cost', '0.056560000');
 
-        \App\Mcp\AdminServer::actingAs($admin)->tool(\App\Mcp\Tools\GetDayGenerations::class, ['date' => 'yesterday'])->assertHasErrors();
+        AdminServer::actingAs($admin)->tool(GetDayGenerations::class, ['date' => 'yesterday'])->assertHasErrors();
     }
 }

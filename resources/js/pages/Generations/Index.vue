@@ -27,7 +27,7 @@ interface Generation {
     completed_at: string | null;
 }
 
-const props = defineProps<{
+defineProps<{
     generations: { data: Generation[]; links: { url: string | null; label: string; active: boolean }[] };
     balance: string;
 }>();
@@ -56,9 +56,13 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 class="text-xl font-semibold tracking-tight">History</h1>
-                    <p class="text-sm text-muted-foreground">Balance <span class="font-medium text-foreground tabular-nums">{{ balance }}</span></p>
+                    <p class="text-sm text-muted-foreground">
+                        Balance <span class="font-medium tabular-nums text-foreground">{{ balance }}</span>
+                    </p>
                 </div>
-                <Button as-child><Link :href="route('generations.create')"><Sparkles class="size-4" /> New image</Link></Button>
+                <Button as-child
+                    ><Link :href="route('generations.create')"><Sparkles class="size-4" /> New image</Link></Button
+                >
             </div>
 
             <Card v-if="generations.data.length === 0">
@@ -70,7 +74,13 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
             </Card>
 
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Card v-for="g in generations.data" :key="g.id" class="overflow-hidden" :data-testid="'generation:' + g.prompt" :data-status="g.status">
+                <Card
+                    v-for="g in generations.data"
+                    :key="g.id"
+                    class="overflow-hidden"
+                    :data-testid="'generation:' + g.prompt"
+                    :data-status="g.status"
+                >
                     <div class="relative flex aspect-square items-center justify-center bg-muted">
                         <img
                             v-if="g.image_url && !broken.has(g.id)"
@@ -80,7 +90,10 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
                             loading="lazy"
                             @error="broken.add(g.id)"
                         />
-                        <div v-else-if="g.status === 'succeeded'" class="flex flex-col items-center gap-2 p-6 text-center text-xs text-muted-foreground">
+                        <div
+                            v-else-if="g.status === 'succeeded'"
+                            class="flex flex-col items-center gap-2 p-6 text-center text-xs text-muted-foreground"
+                        >
                             <ImageOff class="size-6" /> Image link expired. Pixelforge keeps images for 24 hours.
                         </div>
                         <div v-else-if="g.status === 'failed'" class="flex flex-col items-center gap-2 p-6 text-center text-xs text-muted-foreground">
@@ -104,7 +117,15 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
                             </div>
                             <div>
                                 <dt class="text-xs text-muted-foreground">Charged</dt>
-                                <dd v-if="g.status === 'succeeded'" class="font-medium tabular-nums" :title="'$' + g.price_exact" :data-testid="'charged:' + g.prompt" :data-exact="g.price_exact">{{ g.price }}</dd>
+                                <dd
+                                    v-if="g.status === 'succeeded'"
+                                    class="font-medium tabular-nums"
+                                    :title="'$' + g.price_exact"
+                                    :data-testid="'charged:' + g.prompt"
+                                    :data-exact="g.price_exact"
+                                >
+                                    {{ g.price }}
+                                </dd>
                                 <dd v-else-if="g.status === 'failed'" class="tabular-nums">$0.00</dd>
                                 <dd v-else class="text-muted-foreground">pending</dd>
                             </div>
@@ -121,7 +142,14 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
             </div>
 
             <nav v-if="generations.links.length > 3" class="flex flex-wrap justify-center gap-1">
-                <Button v-for="l in generations.links" :key="l.label" :variant="l.active ? 'default' : 'outline'" size="sm" :disabled="!l.url" as-child>
+                <Button
+                    v-for="l in generations.links"
+                    :key="l.label"
+                    :variant="l.active ? 'default' : 'outline'"
+                    size="sm"
+                    :disabled="!l.url"
+                    as-child
+                >
                     <Link :href="l.url ?? '#'" preserve-scroll><span v-html="l.label" /></Link>
                 </Button>
             </nav>

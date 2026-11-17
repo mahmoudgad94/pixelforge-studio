@@ -113,34 +113,43 @@ const stats = [
                 <div>
                     <h1 class="text-xl font-semibold tracking-tight">Admin report</h1>
                     <p class="text-sm text-muted-foreground">
-                        <template v-if="singleDay">Showing {{ start }} (UTC). </template>Days are the UTC day a generation completed, like Pixelforge billing. Click a day to see the generations inside it.
+                        <template v-if="singleDay">Showing {{ start }} (UTC). </template>Days are the UTC day a generation completed, like Pixelforge
+                        billing. Click a day to see the generations inside it.
                     </p>
                 </div>
                 <div class="flex flex-wrap items-end gap-3">
-                <div class="flex rounded-md border p-0.5">
-                    <Button
-                        v-for="p in presets"
-                        :key="p.label"
-                        size="sm"
-                        :variant="isActive(p) ? 'secondary' : 'ghost'"
-                        class="h-8"
-                        @click="pick(p.start(), p.end())"
-                    >
-                        {{ p.label }}
-                    </Button>
-                </div>
-                <form class="flex flex-wrap items-end gap-2" @submit.prevent="apply">
-                    <div class="grid gap-1"><Label for="start" class="text-xs">From</Label><Input id="start" v-model="start" type="date" class="h-9" /></div>
-                    <div class="grid gap-1"><Label for="end" class="text-xs">To</Label><Input id="end" v-model="end" type="date" class="h-9" /></div>
-                    <Button type="submit" size="sm" class="h-9">Apply</Button>
-                </form>
+                    <div class="flex rounded-md border p-0.5">
+                        <Button
+                            v-for="p in presets"
+                            :key="p.label"
+                            size="sm"
+                            :variant="isActive(p) ? 'secondary' : 'ghost'"
+                            class="h-8"
+                            @click="pick(p.start(), p.end())"
+                        >
+                            {{ p.label }}
+                        </Button>
+                    </div>
+                    <form class="flex flex-wrap items-end gap-2" @submit.prevent="apply">
+                        <div class="grid gap-1">
+                            <Label for="start" class="text-xs">From</Label><Input id="start" v-model="start" type="date" class="h-9" />
+                        </div>
+                        <div class="grid gap-1">
+                            <Label for="end" class="text-xs">To</Label><Input id="end" v-model="end" type="date" class="h-9" />
+                        </div>
+                        <Button type="submit" size="sm" class="h-9">Apply</Button>
+                    </form>
                 </div>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Card v-for="s in stats" :key="s.key">
-                    <CardHeader class="pb-2"><CardDescription>{{ s.label }}</CardDescription></CardHeader>
-                    <CardContent><div class="text-2xl font-semibold tabular-nums">{{ s.prefix }}{{ totals[s.key] }}</div></CardContent>
+                    <CardHeader class="pb-2"
+                        ><CardDescription>{{ s.label }}</CardDescription></CardHeader
+                    >
+                    <CardContent
+                        ><div class="text-2xl font-semibold tabular-nums">{{ s.prefix }}{{ totals[s.key] }}</div></CardContent
+                    >
                 </Card>
             </div>
 
@@ -149,100 +158,129 @@ const stats = [
             <Card>
                 <CardHeader>
                     <CardTitle class="text-base">Per day</CardTitle>
-                    <CardDescription>Our provider cost checked against Pixelforge GET /v1/usage. Counts and costs must match exactly.</CardDescription>
+                    <CardDescription
+                        >Our provider cost checked against Pixelforge GET /v1/usage. Counts and costs must match exactly.</CardDescription
+                    >
                 </CardHeader>
                 <CardContent class="p-0">
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Day</TableHead><TableHead class="text-right">Gens</TableHead><TableHead class="text-right">Credit spend</TableHead>
-                                <TableHead class="text-right">Provider cost</TableHead><TableHead class="text-right">Pixelforge</TableHead>
-                                <TableHead class="text-right">Profit</TableHead><TableHead>Check</TableHead>
+                                <TableHead>Day</TableHead><TableHead class="text-right">Gens</TableHead
+                                ><TableHead class="text-right">Credit spend</TableHead> <TableHead class="text-right">Provider cost</TableHead
+                                ><TableHead class="text-right">Pixelforge</TableHead> <TableHead class="text-right">Profit</TableHead
+                                ><TableHead>Check</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             <template v-for="d in visibleDays" :key="d.date">
-                            <TableRow
-                                :class="[isEmpty(d) ? 'text-muted-foreground' : '', d.generations ? 'cursor-pointer' : '']"
-                                @click="d.generations && toggleDay(d.date)"
-                            >
-                                <TableCell class="font-mono text-xs">
-                                    <span class="inline-flex items-center gap-1">
-                                        <ChevronRight
-                                            v-if="d.generations"
-                                            class="size-3.5 transition-transform"
-                                            :class="detail[d.date] ? 'rotate-90' : ''"
-                                            aria-hidden="true"
-                                        />
-                                        <button
-                                            type="button"
-                                            class="underline-offset-4 hover:underline"
-                                            :aria-expanded="!!detail[d.date]"
-                                            :disabled="!d.generations"
-                                            @click.stop="toggleDay(d.date)"
+                                <TableRow
+                                    :class="[isEmpty(d) ? 'text-muted-foreground' : '', d.generations ? 'cursor-pointer' : '']"
+                                    @click="d.generations && toggleDay(d.date)"
+                                >
+                                    <TableCell class="font-mono text-xs">
+                                        <span class="inline-flex items-center gap-1">
+                                            <ChevronRight
+                                                v-if="d.generations"
+                                                class="size-3.5 transition-transform"
+                                                :class="detail[d.date] ? 'rotate-90' : ''"
+                                                aria-hidden="true"
+                                            />
+                                            <button
+                                                type="button"
+                                                class="underline-offset-4 hover:underline"
+                                                :aria-expanded="!!detail[d.date]"
+                                                :disabled="!d.generations"
+                                                @click.stop="toggleDay(d.date)"
+                                            >
+                                                {{ d.date }}
+                                            </button>
+                                        </span>
+                                    </TableCell>
+                                    <TableCell class="text-right tabular-nums">{{ d.generations }}</TableCell>
+                                    <TableCell class="text-right tabular-nums">{{ d.spend }}</TableCell>
+                                    <TableCell class="text-right font-mono text-xs">{{ d.cost }}</TableCell>
+                                    <TableCell class="text-right font-mono text-xs">{{ d.pixelforge_cost ?? '–' }}</TableCell>
+                                    <TableCell class="text-right tabular-nums">{{ d.profit }}</TableCell>
+                                    <TableCell>
+                                        <Badge
+                                            v-if="d.matches === true"
+                                            class="border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                            >Match</Badge
                                         >
-                                            {{ d.date }}
-                                        </button>
-                                    </span>
-                                </TableCell>
-                                <TableCell class="text-right tabular-nums">{{ d.generations }}</TableCell>
-                                <TableCell class="text-right tabular-nums">{{ d.spend }}</TableCell>
-                                <TableCell class="text-right font-mono text-xs">{{ d.cost }}</TableCell>
-                                <TableCell class="text-right font-mono text-xs">{{ d.pixelforge_cost ?? '–' }}</TableCell>
-                                <TableCell class="text-right tabular-nums">{{ d.profit }}</TableCell>
-                                <TableCell>
-                                    <Badge v-if="d.matches === true" class="border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">Match</Badge>
-                                    <Badge v-else-if="d.matches === false" variant="destructive">Mismatch</Badge>
-                                    <span v-else class="text-muted-foreground">–</span>
-                                </TableCell>
-                            </TableRow>
-                            <TableRow v-if="detail[d.date]" class="hover:bg-transparent">
-                                <TableCell :colspan="7" class="bg-muted/40 p-3 whitespace-normal">
-                                    <div v-if="detail[d.date].loading" class="flex items-center gap-2 py-3 text-sm text-muted-foreground">
-                                        <LoaderCircle class="size-4 animate-spin" /> Loading {{ d.date }}…
-                                    </div>
-                                    <p v-else-if="detail[d.date].error" class="py-3 text-sm text-destructive">Could not load this day: {{ detail[d.date].error }}</p>
-                                    <ul v-else class="grid gap-2">
-                                        <li
-                                            v-for="g in detail[d.date].rows"
-                                            :key="g.id"
-                                            class="flex flex-col gap-3 rounded-md border bg-background p-3 sm:flex-row"
-                                            :class="g.status === 'failed' ? 'opacity-75' : ''"
-                                        >
-                                            <a v-if="g.image_url" :href="g.image_url" target="_blank" rel="noopener" class="shrink-0">
-                                                <img :src="g.image_url" :alt="g.prompt" loading="lazy" class="size-16 rounded object-cover" />
-                                            </a>
-                                            <div v-else class="hidden size-16 shrink-0 rounded bg-muted sm:block" />
-                                            <div class="min-w-0 flex-1 space-y-1">
-                                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                                                    <span class="font-mono">{{ g.completed_at }} UTC</span>
-                                                    <span>·</span>
-                                                    <span :title="g.email ?? ''">{{ g.user }}</span>
-                                                    <span>·</span>
-                                                    <span>{{ g.size }} {{ g.quality }}<template v-if="g.references">, {{ g.references }} ref</template></span>
-                                                    <Badge v-if="g.status === 'failed'" variant="outline" class="h-5">Failed, free</Badge>
-                                                    <Link :href="route('admin.generations.show', g.id)" class="font-mono underline-offset-4 hover:text-foreground hover:underline" title="Every API call and webhook for this generation">#{{ g.id }}<template v-if="g.pixelforge_id"> · {{ g.pixelforge_id }}</template> · timeline</Link>
+                                        <Badge v-else-if="d.matches === false" variant="destructive">Mismatch</Badge>
+                                        <span v-else class="text-muted-foreground">–</span>
+                                    </TableCell>
+                                </TableRow>
+                                <TableRow v-if="detail[d.date]" class="hover:bg-transparent">
+                                    <TableCell :colspan="7" class="whitespace-normal bg-muted/40 p-3">
+                                        <div v-if="detail[d.date].loading" class="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+                                            <LoaderCircle class="size-4 animate-spin" /> Loading {{ d.date }}…
+                                        </div>
+                                        <p v-else-if="detail[d.date].error" class="py-3 text-sm text-destructive">
+                                            Could not load this day: {{ detail[d.date].error }}
+                                        </p>
+                                        <ul v-else class="grid gap-2">
+                                            <li
+                                                v-for="g in detail[d.date].rows"
+                                                :key="g.id"
+                                                class="flex flex-col gap-3 rounded-md border bg-background p-3 sm:flex-row"
+                                                :class="g.status === 'failed' ? 'opacity-75' : ''"
+                                            >
+                                                <a v-if="g.image_url" :href="g.image_url" target="_blank" rel="noopener" class="shrink-0">
+                                                    <img :src="g.image_url" :alt="g.prompt" loading="lazy" class="size-16 rounded object-cover" />
+                                                </a>
+                                                <div v-else class="hidden size-16 shrink-0 rounded bg-muted sm:block" />
+                                                <div class="min-w-0 flex-1 space-y-1">
+                                                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                                                        <span class="font-mono">{{ g.completed_at }} UTC</span>
+                                                        <span>·</span>
+                                                        <span :title="g.email ?? ''">{{ g.user }}</span>
+                                                        <span>·</span>
+                                                        <span
+                                                            >{{ g.size }} {{ g.quality
+                                                            }}<template v-if="g.references">, {{ g.references }} ref</template></span
+                                                        >
+                                                        <Badge v-if="g.status === 'failed'" variant="outline" class="h-5">Failed, free</Badge>
+                                                        <Link
+                                                            :href="route('admin.generations.show', g.id)"
+                                                            class="font-mono underline-offset-4 hover:text-foreground hover:underline"
+                                                            title="Every API call and webhook for this generation"
+                                                            >#{{ g.id }}<template v-if="g.pixelforge_id"> · {{ g.pixelforge_id }}</template> ·
+                                                            timeline</Link
+                                                        >
+                                                    </div>
+                                                    <p class="truncate text-sm" :title="g.prompt">{{ g.prompt }}</p>
+                                                    <p v-if="g.error" class="text-xs text-destructive">{{ g.error }}</p>
+                                                    <p v-if="g.tokens" class="text-xs tabular-nums text-muted-foreground">
+                                                        <template v-for="(label, key, i) in tokenLabels" :key="key"
+                                                            ><template v-if="i">, </template>{{ g.tokens[key] ?? 0 }} {{ label }}</template
+                                                        >
+                                                        tokens
+                                                    </p>
                                                 </div>
-                                                <p class="truncate text-sm" :title="g.prompt">{{ g.prompt }}</p>
-                                                <p v-if="g.error" class="text-xs text-destructive">{{ g.error }}</p>
-                                                <p v-if="g.tokens" class="text-xs text-muted-foreground tabular-nums">
-                                                    <template v-for="(label, key, i) in tokenLabels" :key="key"><template v-if="i">, </template>{{ g.tokens[key] ?? 0 }} {{ label }}</template> tokens
-                                                </p>
-                                            </div>
-                                            <dl class="grid shrink-0 grid-cols-[auto_auto] gap-x-3 text-xs tabular-nums sm:text-right">
-                                                <dt class="text-muted-foreground">Estimate</dt><dd>{{ g.estimate }}</dd>
-                                                <dt class="text-muted-foreground">Charged</dt><dd class="font-medium">{{ g.spend }}</dd>
-                                                <dt class="text-muted-foreground">Cost</dt><dd class="font-mono">${{ g.cost }}</dd>
-                                                <dt class="text-muted-foreground">Profit</dt><dd>{{ g.profit }}</dd>
-                                            </dl>
-                                        </li>
-                                        <li v-if="detail[d.date].rows.length === 0" class="py-3 text-sm text-muted-foreground">Nothing finished on this day.</li>
-                                    </ul>
-                                </TableCell>
-                            </TableRow>
+                                                <dl class="grid shrink-0 grid-cols-[auto_auto] gap-x-3 text-xs tabular-nums sm:text-right">
+                                                    <dt class="text-muted-foreground">Estimate</dt>
+                                                    <dd>{{ g.estimate }}</dd>
+                                                    <dt class="text-muted-foreground">Charged</dt>
+                                                    <dd class="font-medium">{{ g.spend }}</dd>
+                                                    <dt class="text-muted-foreground">Cost</dt>
+                                                    <dd class="font-mono">${{ g.cost }}</dd>
+                                                    <dt class="text-muted-foreground">Profit</dt>
+                                                    <dd>{{ g.profit }}</dd>
+                                                </dl>
+                                            </li>
+                                            <li v-if="detail[d.date].rows.length === 0" class="py-3 text-sm text-muted-foreground">
+                                                Nothing finished on this day.
+                                            </li>
+                                        </ul>
+                                    </TableCell>
+                                </TableRow>
                             </template>
                             <TableRow v-if="visibleDays.length === 0">
-                                <TableCell :colspan="7" class="py-10 text-center text-muted-foreground">No generations completed in this range.</TableCell>
+                                <TableCell :colspan="7" class="py-10 text-center text-muted-foreground"
+                                    >No generations completed in this range.</TableCell
+                                >
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -262,7 +300,8 @@ const stats = [
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Day</TableHead><TableHead>User</TableHead><TableHead class="text-right">Gens</TableHead>
-                                <TableHead class="text-right">Credit spend</TableHead><TableHead class="text-right">Provider cost</TableHead><TableHead class="text-right">Profit</TableHead>
+                                <TableHead class="text-right">Credit spend</TableHead><TableHead class="text-right">Provider cost</TableHead
+                                ><TableHead class="text-right">Profit</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -275,7 +314,9 @@ const stats = [
                                 <TableCell class="text-right tabular-nums">{{ r.profit }}</TableCell>
                             </TableRow>
                             <TableRow v-if="perUser.length === 0">
-                                <TableCell :colspan="6" class="py-10 text-center text-muted-foreground">No completed generations in this range.</TableCell>
+                                <TableCell :colspan="6" class="py-10 text-center text-muted-foreground"
+                                    >No completed generations in this range.</TableCell
+                                >
                             </TableRow>
                         </TableBody>
                     </Table>

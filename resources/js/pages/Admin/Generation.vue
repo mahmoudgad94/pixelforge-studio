@@ -95,21 +95,32 @@ const time = (iso: string) => iso.slice(11, 23);
                     <CardHeader class="pb-2"><CardDescription>Estimated, then charged</CardDescription></CardHeader>
                     <CardContent>
                         <div class="text-2xl font-semibold tabular-nums">{{ generation.price }}</div>
-                        <p class="text-xs text-muted-foreground tabular-nums">estimate {{ generation.estimate }} ({{ generation.estimate_range[0] }} to {{ generation.estimate_range[1] }})</p>
+                        <p class="text-xs tabular-nums text-muted-foreground">
+                            estimate {{ generation.estimate }} ({{ generation.estimate_range[0] }} to {{ generation.estimate_range[1] }})
+                        </p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader class="pb-2"><CardDescription>Pixelforge cost and our profit</CardDescription></CardHeader>
                     <CardContent>
                         <div class="font-mono text-lg">${{ generation.cost }}</div>
-                        <p class="text-xs text-muted-foreground tabular-nums">profit {{ generation.profit }}</p>
+                        <p class="text-xs tabular-nums text-muted-foreground">profit {{ generation.profit }}</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader class="pb-2"><CardDescription>Conversation with Pixelforge</CardDescription></CardHeader>
                     <CardContent class="space-y-0.5 text-sm">
-                        <div>{{ summary.api_calls }} API calls, {{ generation.submit_attempts }} submit attempt{{ generation.submit_attempts === 1 ? '' : 's' }}</div>
-                        <div>{{ summary.webhooks }} webhooks, {{ summary.duplicates_ignored }} duplicate{{ summary.duplicates_ignored === 1 ? '' : 's' }} ignored</div>
+                        <div>
+                            {{ summary.api_calls }} API calls, {{ generation.submit_attempts }} submit attempt{{
+                                generation.submit_attempts === 1 ? '' : 's'
+                            }}
+                        </div>
+                        <div>
+                            {{ summary.webhooks }} webhooks, {{ summary.duplicates_ignored }} duplicate{{
+                                summary.duplicates_ignored === 1 ? '' : 's'
+                            }}
+                            ignored
+                        </div>
                         <div class="font-mono text-xs text-muted-foreground">{{ summary.sender_ips.join(', ') || 'no webhook IPs yet' }}</div>
                     </CardContent>
                 </Card>
@@ -141,8 +152,8 @@ const time = (iso: string) => iso.slice(11, 23);
                 <CardHeader>
                     <CardTitle class="text-base">Every call, in order (UTC)</CardTitle>
                     <CardDescription>
-                        <ArrowUpRight class="inline size-3.5" /> we called Pixelforge.
-                        <ArrowDownLeft class="inline size-3.5" /> Pixelforge called our webhook: IP, delivery attempt and what we answered.
+                        <ArrowUpRight class="inline size-3.5" /> we called Pixelforge. <ArrowDownLeft class="inline size-3.5" /> Pixelforge called our
+                        webhook: IP, delivery attempt and what we answered.
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="p-0">
@@ -167,7 +178,7 @@ const time = (iso: string) => iso.slice(11, 23);
                                     <div v-if="a.error_code" class="mt-1 font-mono text-[11px] text-muted-foreground">{{ a.error_code }}</div>
                                 </TableCell>
                                 <TableCell class="text-right font-mono text-xs">{{ a.status_code ?? '–' }}</TableCell>
-                                <TableCell class="text-right tabular-nums text-xs">{{ secs(a.duration_ms) }}</TableCell>
+                                <TableCell class="text-right text-xs tabular-nums">{{ secs(a.duration_ms) }}</TableCell>
                                 <TableCell class="text-xs">{{ a.attempt ?? '–' }}</TableCell>
                                 <TableCell class="font-mono text-[11px]">
                                     <div v-if="a.ip">{{ a.ip }}</div>
@@ -176,7 +187,9 @@ const time = (iso: string) => iso.slice(11, 23);
                                 <TableCell class="max-w-xs whitespace-normal text-xs text-muted-foreground">{{ a.detail }}</TableCell>
                             </TableRow>
                             <TableRow v-if="activity.length === 0">
-                                <TableCell :colspan="8" class="py-10 text-center text-muted-foreground">No calls logged for this generation (it may predate logging).</TableCell>
+                                <TableCell :colspan="8" class="py-10 text-center text-muted-foreground"
+                                    >No calls logged for this generation (it may predate logging).</TableCell
+                                >
                             </TableRow>
                         </TableBody>
                     </Table>

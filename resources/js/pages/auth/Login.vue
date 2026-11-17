@@ -39,7 +39,8 @@ const submit = () => {
         <div v-if="demo" class="mb-2 rounded-lg border bg-muted/50 p-3 text-sm">
             <div class="font-medium">Demo account, already filled in</div>
             <div class="text-muted-foreground">
-                {{ demo.email }} / <span class="font-mono">{{ demo.password }}</span>. It is an admin, so you can see the report and approvals too.
+                {{ demo.email }} / <span class="font-mono">{{ demo.password }}</span
+                >. It is an admin, so you can see the report and approvals too.
             </div>
         </div>
 

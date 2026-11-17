@@ -73,9 +73,17 @@ const tools = [
     { icon: Eye, name: 'find-generations', body: 'Recent generations by user and status, with estimated and charged price and errors.' },
     { icon: Eye, name: 'get-user-credits', body: "A user's balance and latest ledger entries." },
     { icon: Eye, name: 'get-action-status', body: 'Whether a request below was approved, rejected or expired.' },
-    { icon: Pencil, name: 'request-credit-adjustment', body: 'Asks to add or remove credits. It changes nothing: it creates a request on this page.' },
+    {
+        icon: Pencil,
+        name: 'request-credit-adjustment',
+        body: 'Asks to add or remove credits. It changes nothing: it creates a request on this page.',
+    },
 ];
-const examples = ['How much profit did we make yesterday, and does it match Pixelforge?', 'Which generations failed today, and for which users?', 'Give reviewer@demo.test $2 back, their image failed twice.'];
+const examples = [
+    'How much profit did we make yesterday, and does it match Pixelforge?',
+    'Which generations failed today, and for which users?',
+    'Give reviewer@demo.test $2 back, their image failed twice.',
+];
 </script>
 
 <template>
@@ -89,20 +97,30 @@ const examples = ['How much profit did we make yesterday, and does it match Pixe
                     <Badge v-if="pending" class="border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-300">{{ pending }} waiting</Badge>
                 </h1>
                 <p class="max-w-3xl text-sm text-muted-foreground">
-                    Connect an AI assistant to this app's admin tools. It can read reports and look things up on its own. When it wants to change money, it can only
-                    ask: the request waits here, and nothing changes until an admin approves it.
+                    Connect an AI assistant to this app's admin tools. It can read reports and look things up on its own. When it wants to change
+                    money, it can only ask: the request waits here, and nothing changes until an admin approves it.
                 </p>
             </div>
 
             <!-- How it works -->
             <div class="grid gap-3 md:grid-cols-4">
-                <div v-for="(step, i) in [
-                    { icon: Bot, title: 'The AI asks', body: 'For example: give a user $2 back because an image failed.' },
-                    { icon: ClipboardCheck, title: 'A request appears here', body: 'With the user, the amount and the AI\'s reason.' },
-                    { icon: UserCheck, title: 'An admin decides', body: 'Approve or reject. Requests expire after 24 hours.' },
-                    { icon: ShieldCheck, title: 'Only then credits change', body: 'Written to the ledger once. A balance can never go below zero.' },
-                ]" :key="step.title" class="relative rounded-xl border p-4">
-                    <div class="flex items-center gap-2 text-xs text-muted-foreground"><component :is="step.icon" class="size-4" /> Step {{ i + 1 }}</div>
+                <div
+                    v-for="(step, i) in [
+                        { icon: Bot, title: 'The AI asks', body: 'For example: give a user $2 back because an image failed.' },
+                        { icon: ClipboardCheck, title: 'A request appears here', body: 'With the user, the amount and the AI\'s reason.' },
+                        { icon: UserCheck, title: 'An admin decides', body: 'Approve or reject. Requests expire after 24 hours.' },
+                        {
+                            icon: ShieldCheck,
+                            title: 'Only then credits change',
+                            body: 'Written to the ledger once. A balance can never go below zero.',
+                        },
+                    ]"
+                    :key="step.title"
+                    class="relative rounded-xl border p-4"
+                >
+                    <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                        <component :is="step.icon" class="size-4" /> Step {{ i + 1 }}
+                    </div>
                     <div class="mt-2 font-medium">{{ step.title }}</div>
                     <p class="mt-1 text-sm text-muted-foreground">{{ step.body }}</p>
                     <ArrowRight v-if="i < 3" class="absolute -right-3 top-1/2 hidden size-4 -translate-y-1/2 text-muted-foreground md:block" />
@@ -134,7 +152,9 @@ const examples = ['How much profit did we make yesterday, and does it match Pixe
                                 <TableCell>
                                     <Badge class="border-transparent capitalize" :class="statusStyle[a.status]">{{ a.status }}</Badge>
                                     <div v-if="a.decided_by" class="mt-1 text-xs text-muted-foreground">by {{ a.decided_by }}</div>
-                                    <div v-else-if="a.status === 'pending'" class="mt-1 text-xs text-muted-foreground">expires {{ when(a.expires_at) }}</div>
+                                    <div v-else-if="a.status === 'pending'" class="mt-1 text-xs text-muted-foreground">
+                                        expires {{ when(a.expires_at) }}
+                                    </div>
                                 </TableCell>
                                 <TableCell class="text-right">
                                     <div v-if="a.status === 'pending'" class="flex justify-end gap-2">
@@ -158,25 +178,43 @@ const examples = ['How much profit did we make yesterday, and does it match Pixe
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2 text-base"><KeyRound class="size-4" /> Connect your AI</CardTitle>
                         <CardDescription>
-                            Server address: <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{{ mcp.url }}</code>. Only admin accounts can connect.
+                            Server address: <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{{ mcp.url }}</code
+                            >. Only admin accounts can connect.
                         </CardDescription>
                     </CardHeader>
                     <CardContent class="space-y-4">
                         <div class="flex flex-wrap gap-1 rounded-md border p-0.5">
-                            <Button v-for="c in clients" :key="c.id" size="sm" class="h-8" :variant="client === c.id ? 'secondary' : 'ghost'" @click="client = c.id">
+                            <Button
+                                v-for="c in clients"
+                                :key="c.id"
+                                size="sm"
+                                class="h-8"
+                                :variant="client === c.id ? 'secondary' : 'ghost'"
+                                @click="client = c.id"
+                            >
                                 {{ c.label }}
                             </Button>
                         </div>
 
                         <ol v-if="client === 'claude-ai'" class="list-decimal space-y-2 pl-5 text-sm">
-                            <li>In Claude, open <span class="font-medium">Settings, Connectors</span>, then <span class="font-medium">Add custom connector</span>.</li>
+                            <li>
+                                In Claude, open <span class="font-medium">Settings, Connectors</span>, then
+                                <span class="font-medium">Add custom connector</span>.
+                            </li>
                             <li>
                                 Paste the server address
-                                <button type="button" class="ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-xs hover:bg-accent" @click="copy('url', mcp.url)">
+                                <button
+                                    type="button"
+                                    class="ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-xs hover:bg-accent"
+                                    @click="copy('url', mcp.url)"
+                                >
                                     <Check v-if="copied === 'url'" class="size-3" /><Copy v-else class="size-3" /> copy
                                 </button>
                             </li>
-                            <li>Claude opens this app: sign in with an admin account and press <span class="font-medium">Authorize</span>. No token to copy.</li>
+                            <li>
+                                Claude opens this app: sign in with an admin account and press <span class="font-medium">Authorize</span>. No token to
+                                copy.
+                            </li>
                             <li>Ask it something from the examples on the right.</li>
                         </ol>
 
@@ -184,24 +222,45 @@ const examples = ['How much profit did we make yesterday, and does it match Pixe
                             <p>Run this, then type <code class="font-mono">/mcp</code> in Claude Code and sign in when the browser opens:</p>
                             <div class="relative">
                                 <pre class="overflow-x-auto rounded-lg bg-muted p-3 pr-12 font-mono text-xs">{{ snippets.claudeCodeOauth }}</pre>
-                                <Button size="icon" variant="ghost" class="absolute right-1 top-1 size-8" aria-label="Copy" @click="copy('cc', snippets.claudeCodeOauth)">
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    class="absolute right-1 top-1 size-8"
+                                    aria-label="Copy"
+                                    @click="copy('cc', snippets.claudeCodeOauth)"
+                                >
                                     <Check v-if="copied === 'cc'" class="size-4" /><Copy v-else class="size-4" />
                                 </Button>
                             </div>
                             <p class="text-muted-foreground">Or skip sign in and use a token (create one below):</p>
                             <div class="relative">
                                 <pre class="overflow-x-auto rounded-lg bg-muted p-3 pr-12 font-mono text-xs">{{ snippets.claudeCodeToken }}</pre>
-                                <Button size="icon" variant="ghost" class="absolute right-1 top-1 size-8" aria-label="Copy" @click="copy('cct', snippets.claudeCodeToken)">
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    class="absolute right-1 top-1 size-8"
+                                    aria-label="Copy"
+                                    @click="copy('cct', snippets.claudeCodeToken)"
+                                >
                                     <Check v-if="copied === 'cct'" class="size-4" /><Copy v-else class="size-4" />
                                 </Button>
                             </div>
                         </div>
 
                         <div v-else class="space-y-3 text-sm">
-                            <p>Add this to the app's MCP settings file (for Cursor: <code class="font-mono">~/.cursor/mcp.json</code>). Create a token below first.</p>
+                            <p>
+                                Add this to the app's MCP settings file (for Cursor: <code class="font-mono">~/.cursor/mcp.json</code>). Create a
+                                token below first.
+                            </p>
                             <div class="relative">
                                 <pre class="overflow-x-auto rounded-lg bg-muted p-3 pr-12 font-mono text-xs">{{ snippets.json }}</pre>
-                                <Button size="icon" variant="ghost" class="absolute right-1 top-1 size-8" aria-label="Copy" @click="copy('json', snippets.json)">
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    class="absolute right-1 top-1 size-8"
+                                    aria-label="Copy"
+                                    @click="copy('json', snippets.json)"
+                                >
                                     <Check v-if="copied === 'json'" class="size-4" /><Copy v-else class="size-4" />
                                 </Button>
                             </div>
@@ -211,7 +270,13 @@ const examples = ['How much profit did we make yesterday, and does it match Pixe
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div class="text-sm">
                                     <div class="font-medium">Access token</div>
-                                    <div class="text-muted-foreground">{{ mcp.hasToken ? 'You have a token. Creating a new one replaces it.' : 'Only needed for apps that cannot sign in.' }}</div>
+                                    <div class="text-muted-foreground">
+                                        {{
+                                            mcp.hasToken
+                                                ? 'You have a token. Creating a new one replaces it.'
+                                                : 'Only needed for apps that cannot sign in.'
+                                        }}
+                                    </div>
                                 </div>
                                 <div class="flex gap-2">
                                     <Button v-if="mcp.hasToken" size="sm" variant="outline" @click="revokeToken">Revoke</Button>
@@ -250,7 +315,11 @@ const examples = ['How much profit did we make yesterday, and does it match Pixe
                             <div class="mb-2 text-xs font-medium text-muted-foreground">Try asking</div>
                             <ul class="space-y-2">
                                 <li v-for="e in examples" :key="e">
-                                    <button type="button" class="w-full rounded-md border px-3 py-2 text-left text-sm hover:bg-accent" @click="copy(e, e)">
+                                    <button
+                                        type="button"
+                                        class="w-full rounded-md border px-3 py-2 text-left text-sm hover:bg-accent"
+                                        @click="copy(e, e)"
+                                    >
                                         <span class="mr-1">{{ e }}</span>
                                         <span class="text-xs text-muted-foreground">{{ copied === e ? 'copied' : '' }}</span>
                                     </button>

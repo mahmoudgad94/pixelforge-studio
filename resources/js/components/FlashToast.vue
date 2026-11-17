@@ -35,7 +35,9 @@ onBeforeUnmount(() => clearTimeout(timer));
         >
             <CircleCheck class="size-4 shrink-0 text-emerald-600" />
             <span>{{ message }}</span>
-            <button type="button" class="ml-1 text-muted-foreground hover:text-foreground" aria-label="Dismiss" @click="message = null"><X class="size-4" /></button>
+            <button type="button" class="ml-1 text-muted-foreground hover:text-foreground" aria-label="Dismiss" @click="message = null">
+                <X class="size-4" />
+            </button>
         </div>
     </Transition>
 </template>

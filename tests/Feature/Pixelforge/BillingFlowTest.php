@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Pixelforge;
 
+use App\Http\Controllers\GenerationController;
 use App\Jobs\SubmitGeneration;
 use App\Mcp\AdminServer;
 use App\Mcp\Tools\GetGenerationTimeline;
@@ -18,6 +19,7 @@ use App\Support\Money;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class BillingFlowTest extends TestCase
@@ -282,7 +284,7 @@ class BillingFlowTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('permanentErrors')]
+    #[DataProvider('permanentErrors')]
     public function test_permanent_errors_are_not_retried_and_cost_nothing(int $status, string $code, string $type): void
     {
         $user = $this->userWithCredits();
@@ -311,7 +313,7 @@ class BillingFlowTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('temporaryErrors')]
+    #[DataProvider('temporaryErrors')]
     public function test_temporary_errors_are_retried_after_retry_after(int $status, ?string $code): void
     {
         $user = $this->userWithCredits();
@@ -346,7 +348,7 @@ class BillingFlowTest extends TestCase
     {
         $user = $this->userWithCredits('100');
         Queue::fake();
-        for ($i = 0; $i < \App\Http\Controllers\GenerationController::MAX_IN_FLIGHT; $i++) {
+        for ($i = 0; $i < GenerationController::MAX_IN_FLIGHT; $i++) {
             $this->actingAs($user)->post('/generations', ['prompt' => "fox {$i}", 'size' => '1024x1024', 'quality' => 'low'])->assertSessionHasNoErrors();
         }
 
@@ -354,7 +356,7 @@ class BillingFlowTest extends TestCase
         $this->actingAs($user)->post('/generations', ['prompt' => 'one too many', 'size' => '1024x1024', 'quality' => 'low'])
             ->assertSessionHasErrors('prompt');
 
-        $this->assertSame(\App\Http\Controllers\GenerationController::MAX_IN_FLIGHT, Generation::count());
+        $this->assertSame(GenerationController::MAX_IN_FLIGHT, Generation::count());
         $this->assertSame($balance, $user->fresh()->balance_picos);
     }
 

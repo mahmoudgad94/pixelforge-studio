@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { formatUsd } from '@/lib/pricing';
 import { useForm } from '@inertiajs/vue3';
@@ -53,7 +62,9 @@ function confirm() {
                 :model-value="String(form.amount)"
                 @update:model-value="(v) => v && (form.amount = Number(v))"
             >
-                <ToggleGroupItem v-for="p in packs" :key="p" :value="String(p)" class="h-14 text-base font-semibold tabular-nums">${{ p }}</ToggleGroupItem>
+                <ToggleGroupItem v-for="p in packs" :key="p" :value="String(p)" class="h-14 text-base font-semibold tabular-nums"
+                    >${{ p }}</ToggleGroupItem
+                >
             </ToggleGroup>
 
             <dl class="grid grid-cols-2 gap-y-1 rounded-lg border bg-muted/40 p-3 text-sm">
