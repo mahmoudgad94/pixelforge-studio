@@ -93,6 +93,7 @@ One image, three roles chosen by the `ROLE` env var (`docker/start.sh`):
 | web | `web` | FrankenPHP HTTP server; runs migrations on boot |
 | worker | `worker` | queue worker that submits generations to Pixelforge |
 | scheduler | `scheduler` | every-minute reconciler for missed or late webhooks |
+| background | `background` | worker and scheduler together, for hosts that limit the service count (used on Railway's free plan) |
 
 Separate services mean a slow Pixelforge call never holds up a page, and each one restarts or scales on its own. `ROLE=all` (the default) runs all three in one container for single-service hosts. `railway.json` builds the Dockerfile and always restarts a service that exits (the worker recycles itself hourly).
 

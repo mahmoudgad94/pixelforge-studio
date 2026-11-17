@@ -4,6 +4,7 @@
 #   ROLE=web        HTTP server (runs migrations first)
 #   ROLE=worker     queue worker: submits generations to Pixelforge
 #   ROLE=scheduler  every-minute reconciler for missed webhooks
+#   ROLE=background worker + scheduler in one service (when the host limits the service count)
 #   ROLE=all        everything in one container (default, for single-service hosts)
 set -e
 ROLE="${ROLE:-all}"
@@ -35,6 +36,12 @@ case "$ROLE" in
   scheduler)
     exec php artisan schedule:work
     ;;
+  background)
+    # Worker and scheduler together; if either dies the container exits and the host restarts it.
+    php artisan schedule:work &
+    trap 'kill 0' EXIT
+    php artisan queue:work --sleep=1 --max-time=3600
+    ;;
   all)
     # If one background process dies the container restarts (exit trap below).
     php artisan queue:work --sleep=1 --max-time=3600 &
@@ -43,7 +50,7 @@ case "$ROLE" in
     exec frankenphp run --config docker/Caddyfile
     ;;
   *)
-    echo "Unknown ROLE=$ROLE (use web, worker, scheduler or all)" >&2
+    echo "Unknown ROLE=$ROLE (use web, worker, scheduler, background or all)" >&2
     exit 1
     ;;
 esac
