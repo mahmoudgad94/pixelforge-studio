@@ -101,6 +101,8 @@ Separate services mean a slow Pixelforge call never holds up a page, and each on
 
 Every service needs the same `DB_URL` (Postgres), `APP_KEY`, `APP_URL`, `PIXELFORGE_API_KEY`, `PIXELFORGE_WEBHOOK_SECRET`, `PASSPORT_PRIVATE_KEY` and `PASSPORT_PUBLIC_KEY` (contents of the key files, so all services sign and check OAuth tokens with one pair). Set the webhook URL in Pixelforge to `https://<host>/webhooks/pixelforge`.
 
+Error reporting: set `SENTRY_LARAVEL_DSN` (and optionally `SENTRY_TRACES_SAMPLE_RATE`). The server reports unhandled exceptions; the browser picks up the same DSN from a meta tag and reports front-end errors, tagged with the environment and the user id only. Being offline is handled in the UI and is not reported. Without a DSN, Sentry stays off.
+
 ## With more time
 
 - Concurrency: queue submissions per account with a Redis funnel (3 slots) instead of relying on 429 + retry.

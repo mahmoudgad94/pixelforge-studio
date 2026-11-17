@@ -7,6 +7,13 @@
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
         <meta name="description" content="Generate images with Pixelforge and pay only for what you use. See the price before you generate.">
         <meta name="theme-color" content="#0a0a0a">
+        @if (config('sentry.dsn'))
+            {{-- Browser error reporting (resources/js/lib/sentry.ts). A DSN is public by design; user is an id only, no email. --}}
+            <meta name="sentry-dsn" content="{{ config('sentry.dsn') }}">
+            <meta name="sentry-environment" content="{{ config('sentry.environment') }}">
+            @if (config('sentry.release'))<meta name="sentry-release" content="{{ config('sentry.release') }}">@endif
+            @auth<meta name="sentry-user" content="{{ auth()->id() }}">@endauth
+        @endif
 
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="icon" href="/favicon.ico" sizes="32x32">

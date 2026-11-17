@@ -8,6 +8,7 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import ConnectionStatus from './components/ConnectionStatus.vue';
 import { initializeTheme } from './composables/useAppearance';
 import { installNetworkHandling, registerServiceWorker } from './lib/network';
+import { initSentry } from './lib/sentry';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -28,10 +29,9 @@ createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolvePageComponent(`./pages/${name}.vue`, import.meta.glob<DefineComponent>('./pages/**/*.vue')),
     setup({ el, App, props, plugin }) {
-        createApp({ render: () => [h(App, props), h(ConnectionStatus)] })
-            .use(plugin)
-            .use(ZiggyVue)
-            .mount(el);
+        const app = createApp({ render: () => [h(App, props), h(ConnectionStatus)] });
+        initSentry(app);
+        app.use(plugin).use(ZiggyVue).mount(el);
     },
     progress: {
         color: '#4B5563',
