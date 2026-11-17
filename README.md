@@ -124,3 +124,8 @@ Error reporting: set `SENTRY_LARAVEL_DSN` (and optionally `SENTRY_TRACES_SAMPLE_
 - Copy images to our own storage (S3) on success, so history doesn't lose them after 24h.
 - Prune the `webhook_events` table; alert when a reconciler run finds a webhook gap.
 - Report: cache usage calls, CSV export.
+
+## Docs
+
+- [Pixelforge integration notes](docs/pixelforge-integration-notes.md): how each documented Pixelforge rule is met, failure scenarios, gaps in the API and docs, and what we log per call.
+- [Admin API and MCP server](docs/admin-api.md): the JSON endpoints, the MCP tools and how to get a token.
