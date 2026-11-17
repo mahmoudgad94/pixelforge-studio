@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\McpToolCall;
 use App\Models\User;
 use App\Pixelforge\Ledger;
 use App\Support\Money;
@@ -14,6 +15,9 @@ Artisan::command('inspire', function () {
 
 // Safety net for missed or delayed webhooks.
 Schedule::command('generations:reconcile')->everyMinute()->withoutOverlapping();
+
+// Keep the MCP usage log to 90 days.
+Schedule::command('model:prune', ['--model' => [McpToolCall::class]])->daily();
 
 Artisan::command('mcp:token {email}', function (string $email) {
     $user = User::where('email', $email)->where('is_admin', true)->first();

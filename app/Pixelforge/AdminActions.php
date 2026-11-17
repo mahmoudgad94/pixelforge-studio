@@ -14,7 +14,7 @@ use RuntimeException;
  */
 class AdminActions
 {
-    public function requestCreditAdjustment(User $requester, User $target, int $amountPicos, string $reason): AdminAction
+    public function requestCreditAdjustment(User $requester, User $target, int $amountPicos, string $reason, ?string $client = null): AdminAction
     {
         return AdminAction::create([
             'type' => 'credit_adjustment',
@@ -22,6 +22,7 @@ class AdminActions
             'reason' => $reason,
             'status' => AdminAction::PENDING,
             'requested_by' => $requester->id,
+            'client' => $client,
             'expires_at' => now()->addDay(),
         ]);
     }

@@ -7,9 +7,9 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router } from '@inertiajs/vue3';
-import { ArrowRight, Bot, Check, ClipboardCheck, Copy, Eye, KeyRound, Pencil, ShieldCheck, UserCheck, X } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { Head, router, usePoll } from '@inertiajs/vue3';
+import { Activity, ArrowRight, Bot, Check, ClipboardCheck, Copy, Eye, History, KeyRound, Pencil, ShieldCheck, UserCheck, X } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 
 interface Action {
     id: number;
@@ -18,20 +18,99 @@ interface Action {
     amount: string | null;
     reason: string;
     status: 'pending' | 'approved' | 'rejected' | 'expired';
+    client: string | null;
     requested_by: string | null;
     decided_by: string | null;
+    decided_at: string | null;
     created_at: string;
     expires_at: string;
 }
+interface McpCall {
+    id: number;
+    at: string;
+    client: string;
+    user: string | null;
+    user_email: string | null;
+    tool: string | null;
+    arguments: string | null;
+    outcome: 'ok' | 'error' | 'refused';
+    error: string | null;
+    duration_ms: number;
+}
+interface Page<T> {
+    data: T[];
+    links: { url: string | null; label: string; active: boolean }[];
+    total: number;
+    from: number | null;
+    to: number | null;
+}
 
 const props = defineProps<{
-    actions: Action[];
+    pending: Action[];
+    history: Page<Action>;
+    mcpCalls: Page<McpCall>;
+    mcpFilters: { tool: string | null; outcome: string | null; tools: string[] };
     mcp: { url: string; hasToken: boolean; newToken: string | null };
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Approvals', href: '/admin/approvals' }];
 const decide = (a: Action, verb: 'approve' | 'reject') => router.post(route(`admin.approvals.${verb}`, a.id), {}, { preserveScroll: true });
-const pending = computed(() => props.actions.filter((a) => a.status === 'pending').length);
+
+// Live: refresh only the three lists every 10 seconds (not the connect instructions), keeping page numbers and filters.
+// Inertia pauses the timer while the tab is in the background.
+usePoll(10000, { only: ['pending', 'history', 'mcpCalls'], preserveScroll: true, preserveState: true });
+
+// ---- MCP activity filters ----
+const toolFilter = ref(props.mcpFilters.tool ?? '');
+const outcomeFilter = ref(props.mcpFilters.outcome ?? '');
+const outcomes = [
+    { value: '', label: 'All outcomes' },
+    { value: 'ok', label: 'OK' },
+    { value: 'error', label: 'Error' },
+    { value: 'refused', label: 'Refused' },
+];
+function applyFilters() {
+    const query = Object.fromEntries(new URLSearchParams(window.location.search));
+    delete query.mcp_page; // a new filter starts on page 1
+    if (toolFilter.value) query.tool = toolFilter.value;
+    else delete query.tool;
+    if (outcomeFilter.value) query.outcome = outcomeFilter.value;
+    else delete query.outcome;
+    router.get(route('admin.approvals.index'), query, { preserveScroll: true, preserveState: true, replace: true, only: ['mcpCalls', 'mcpFilters'] });
+}
+// Page links keep the other table's page and the filters: only this table's page number changes.
+function goToPage(url: string | null, key: 'history_page' | 'mcp_page', only: string[]) {
+    if (!url) return;
+    const page = new URL(url).searchParams.get(key);
+    const query = Object.fromEntries(new URLSearchParams(window.location.search));
+    if (page && page !== '1') query[key] = page;
+    else delete query[key];
+    router.get(route('admin.approvals.index'), query, { preserveScroll: true, preserveState: true, only });
+}
+const filtered = computed(() => Boolean(props.mcpFilters.tool || props.mcpFilters.outcome));
+const clearFilters = () => ((toolFilter.value = ''), (outcomeFilter.value = ''), applyFilters());
+// A filter set from a link or the back button should show in the controls.
+watch(
+    () => [props.mcpFilters.tool, props.mcpFilters.outcome],
+    ([tool, outcome]) => ((toolFilter.value = tool ?? ''), (outcomeFilter.value = outcome ?? '')),
+);
+
+const outcomeStyle: Record<McpCall['outcome'], string> = {
+    ok: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+    error: 'bg-red-500/15 text-red-700 dark:text-red-300',
+    refused: 'bg-orange-500/15 text-orange-700 dark:text-orange-300',
+};
+const clock = new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3,
+    hour12: false,
+});
+const clockAt = (iso: string) => clock.format(new Date(iso));
+const took = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${ms} ms`);
 
 const statusStyle: Record<Action['status'], string> = {
     pending: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
@@ -116,7 +195,9 @@ const examples = [
             <div>
                 <h1 class="flex items-center gap-2 text-xl font-semibold tracking-tight">
                     AI approvals
-                    <Badge v-if="pending" class="border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-300">{{ pending }} waiting</Badge>
+                    <Badge v-if="pending.length" class="border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                        >{{ pending.length }} waiting</Badge
+                    >
                 </h1>
                 <p class="max-w-3xl text-sm text-muted-foreground">
                     Connect an AI assistant to this app's admin tools. It can read reports and look things up on its own. When it wants to change
@@ -149,49 +230,193 @@ const examples = [
                 </div>
             </div>
 
-            <Card>
+            <!-- Waiting for a decision: always on top, highlighted -->
+            <Card class="border-amber-500/40 bg-amber-500/5" data-testid="pending-requests">
                 <CardHeader>
-                    <CardTitle class="flex items-center gap-2 text-base"><Bot class="size-4" /> Requests</CardTitle>
-                    <CardDescription>Newest first. Approving applies the change immediately and records who approved it.</CardDescription>
+                    <CardTitle class="flex items-center gap-2 text-base"><Bot class="size-4" /> Waiting for your decision</CardTitle>
+                    <CardDescription>Approving applies the change immediately and records who approved it.</CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-3">
+                    <div
+                        v-for="a in pending"
+                        :key="a.id"
+                        class="flex flex-col gap-3 rounded-lg border border-amber-500/30 bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <div class="min-w-0 space-y-1">
+                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span class="font-mono text-xs text-muted-foreground">#{{ a.id }}</span>
+                                <span class="font-medium tabular-nums">{{ a.amount }} credits</span>
+                                <span class="break-all text-sm text-muted-foreground">for {{ a.email }}</span>
+                            </div>
+                            <p class="break-words text-sm">{{ a.reason }}</p>
+                            <div class="text-xs text-muted-foreground">
+                                Asked by {{ a.client ?? 'an unknown client' }} as {{ a.requested_by }} · {{ when(a.created_at) }} · expires
+                                {{ when(a.expires_at) }}
+                            </div>
+                        </div>
+                        <div class="flex shrink-0 gap-2">
+                            <Button size="sm" variant="outline" @click="decide(a, 'reject')"><X class="size-4" /> Reject</Button>
+                            <Button size="sm" @click="decide(a, 'approve')"><Check class="size-4" /> Approve</Button>
+                        </div>
+                    </div>
+                    <p v-if="pending.length === 0" class="py-4 text-center text-sm text-muted-foreground">
+                        Nothing is waiting. When an AI asks to change someone's credits, the request shows up here.
+                    </p>
+                </CardContent>
+            </Card>
+
+            <Card data-testid="request-history">
+                <CardHeader>
+                    <CardTitle class="flex items-center gap-2 text-base"><History class="size-4" /> Request history</CardTitle>
+                    <CardDescription>Every request that was approved, rejected or expired, newest first.</CardDescription>
                 </CardHeader>
                 <CardContent class="p-0">
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>#</TableHead><TableHead>Change</TableHead><TableHead>Reason from the AI</TableHead>
-                                <TableHead>Requested</TableHead><TableHead>Status</TableHead><TableHead class="text-right">Decision</TableHead>
+                                <TableHead>#</TableHead><TableHead>Asked by</TableHead><TableHead>Change</TableHead>
+                                <TableHead>Reason from the AI</TableHead><TableHead>Status</TableHead><TableHead>Decision</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow v-for="a in actions" :key="a.id">
+                            <TableRow v-for="a in history.data" :key="a.id">
                                 <TableCell class="font-mono text-xs">{{ a.id }}</TableCell>
+                                <TableCell class="whitespace-normal">
+                                    <Badge variant="outline" class="font-normal">{{ a.client ?? 'Unknown client' }}</Badge>
+                                    <div class="mt-1 text-xs text-muted-foreground">{{ a.requested_by }}</div>
+                                    <div class="text-xs text-muted-foreground">{{ when(a.created_at) }}</div>
+                                </TableCell>
                                 <TableCell>
                                     <div class="font-medium tabular-nums">{{ a.amount }} credits</div>
                                     <div class="text-xs text-muted-foreground">{{ a.email }}</div>
                                 </TableCell>
-                                <TableCell class="max-w-xs whitespace-normal text-sm">{{ a.reason }}</TableCell>
-                                <TableCell class="text-xs text-muted-foreground">{{ a.requested_by }} · {{ when(a.created_at) }}</TableCell>
+                                <TableCell class="min-w-48 max-w-xs whitespace-normal break-words text-sm">{{ a.reason }}</TableCell>
                                 <TableCell>
                                     <Badge class="border-transparent capitalize" :class="statusStyle[a.status]">{{ a.status }}</Badge>
-                                    <div v-if="a.decided_by" class="mt-1 text-xs text-muted-foreground">by {{ a.decided_by }}</div>
-                                    <div v-else-if="a.status === 'pending'" class="mt-1 text-xs text-muted-foreground">
-                                        expires {{ when(a.expires_at) }}
-                                    </div>
                                 </TableCell>
-                                <TableCell class="text-right">
-                                    <div v-if="a.status === 'pending'" class="flex justify-end gap-2">
-                                        <Button size="sm" variant="outline" @click="decide(a, 'reject')"><X class="size-4" /> Reject</Button>
-                                        <Button size="sm" @click="decide(a, 'approve')"><Check class="size-4" /> Approve</Button>
-                                    </div>
+                                <TableCell class="text-xs text-muted-foreground">
+                                    <template v-if="a.decided_by && a.decided_at">
+                                        <div class="text-foreground">{{ a.decided_by }}</div>
+                                        <div>{{ when(a.decided_at) }}</div>
+                                    </template>
+                                    <template v-else-if="a.status === 'expired'">
+                                        <div class="text-foreground">Nobody decided</div>
+                                        <div>expired {{ when(a.expires_at) }}</div>
+                                    </template>
+                                    <template v-else>-</template>
                                 </TableCell>
                             </TableRow>
-                            <TableRow v-if="actions.length === 0">
+                            <TableRow v-if="history.data.length === 0">
                                 <TableCell :colspan="6" class="py-10 text-center text-muted-foreground">
-                                    No requests yet. Connect an AI below and ask it to adjust someone's credits.
+                                    No past requests yet. Approved, rejected and expired requests are kept here.
                                 </TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
+                    <nav v-if="history.links.length > 3" class="flex flex-wrap justify-center gap-1 border-t p-3" aria-label="Request history pages">
+                        <Button
+                            v-for="l in history.links"
+                            :key="l.label"
+                            :variant="l.active ? 'default' : 'outline'"
+                            size="sm"
+                            :disabled="!l.url"
+                            @click="goToPage(l.url, 'history_page', ['history', 'pending'])"
+                        >
+                            <span v-html="l.label" />
+                        </Button>
+                    </nav>
+                </CardContent>
+            </Card>
+
+            <Card data-testid="mcp-activity">
+                <CardHeader>
+                    <CardTitle class="flex flex-wrap items-center gap-x-2 gap-y-1 text-base">
+                        <Activity class="size-4" /> MCP activity
+                        <span class="inline-flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+                            <span class="relative flex size-2"
+                                ><span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60"></span
+                                ><span class="relative inline-flex size-2 rounded-full bg-emerald-500"></span></span
+                            >Live, updates every 10 seconds
+                        </span>
+                    </CardTitle>
+                    <CardDescription>
+                        Every tool call an AI makes, and every connection that was turned away. Arguments are shortened and secrets are removed. Kept
+                        for 90 days.
+                    </CardDescription>
+                    <div class="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center">
+                        <label class="sr-only" for="mcp-tool">Filter by tool</label>
+                        <select
+                            id="mcp-tool"
+                            v-model="toolFilter"
+                            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-56"
+                            @change="applyFilters"
+                        >
+                            <option value="">All tools</option>
+                            <option v-for="t in mcpFilters.tools" :key="t" :value="t">{{ t }}</option>
+                        </select>
+                        <label class="sr-only" for="mcp-outcome">Filter by outcome</label>
+                        <select
+                            id="mcp-outcome"
+                            v-model="outcomeFilter"
+                            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-44"
+                            @change="applyFilters"
+                        >
+                            <option v-for="o in outcomes" :key="o.value" :value="o.value">{{ o.label }}</option>
+                        </select>
+                        <Button v-if="filtered" size="sm" variant="ghost" @click="clearFilters">Clear filters</Button>
+                        <span class="text-xs text-muted-foreground sm:ml-auto"
+                            >{{ mcpCalls.total }} {{ mcpCalls.total === 1 ? 'call' : 'calls' }}</span
+                        >
+                    </div>
+                </CardHeader>
+                <CardContent class="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Time</TableHead><TableHead>Client</TableHead><TableHead>User</TableHead><TableHead>Tool</TableHead>
+                                <TableHead>Arguments</TableHead><TableHead>Outcome</TableHead><TableHead class="text-right">Took</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-for="c in mcpCalls.data" :key="c.id">
+                                <TableCell class="whitespace-nowrap font-mono text-xs tabular-nums">{{ clockAt(c.at) }}</TableCell>
+                                <TableCell class="whitespace-nowrap">{{ c.client }}</TableCell>
+                                <TableCell class="whitespace-nowrap" :title="c.user_email ?? ''">{{ c.user ?? '-' }}</TableCell>
+                                <TableCell class="whitespace-nowrap font-mono text-xs">{{ c.tool ?? '-' }}</TableCell>
+                                <TableCell class="min-w-48 max-w-xs whitespace-normal break-all text-xs text-muted-foreground">{{
+                                    c.arguments ?? '-'
+                                }}</TableCell>
+                                <TableCell class="whitespace-normal">
+                                    <Badge class="border-transparent capitalize" :class="outcomeStyle[c.outcome]">{{ c.outcome }}</Badge>
+                                    <div v-if="c.error" class="mt-1 max-w-xs break-words text-xs text-muted-foreground">{{ c.error }}</div>
+                                </TableCell>
+                                <TableCell class="whitespace-nowrap text-right text-xs tabular-nums">{{ took(c.duration_ms) }}</TableCell>
+                            </TableRow>
+                            <TableRow v-if="mcpCalls.data.length === 0">
+                                <TableCell :colspan="7" class="py-10 text-center text-muted-foreground" data-testid="mcp-empty">
+                                    <template v-if="filtered"
+                                        >No calls match these filters.
+                                        <button class="underline" @click="clearFilters">Clear filters</button></template
+                                    >
+                                    <template v-else
+                                        >No activity yet. Connect an AI below and ask it a question: each tool it uses shows up here.</template
+                                    >
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                    <nav v-if="mcpCalls.links.length > 3" class="flex flex-wrap justify-center gap-1 border-t p-3" aria-label="MCP activity pages">
+                        <Button
+                            v-for="l in mcpCalls.links"
+                            :key="l.label"
+                            :variant="l.active ? 'default' : 'outline'"
+                            size="sm"
+                            :disabled="!l.url"
+                            @click="goToPage(l.url, 'mcp_page', ['mcpCalls'])"
+                        >
+                            <span v-html="l.label" />
+                        </Button>
+                    </nav>
                 </CardContent>
             </Card>
 

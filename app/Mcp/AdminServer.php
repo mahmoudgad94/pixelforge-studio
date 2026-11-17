@@ -33,4 +33,10 @@ class AdminServer extends Server
         RequestCreditAdjustment::class,
         GetActionStatus::class,
     ];
+
+    /** Every tools/call goes through the usage log (table mcp_tool_calls). */
+    protected function boot(): void
+    {
+        $this->addMethod('tools/call', LoggedCallTool::class);
+    }
 }

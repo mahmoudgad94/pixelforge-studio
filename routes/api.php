@@ -8,5 +8,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware([AuthenticateMcpToken::class, 'throttle:60,1'])->prefix('admin')->group(function () {
     Route::get('report', [AdminApiController::class, 'report']);
     Route::get('report/days/{date}', [AdminApiController::class, 'day'])->where('date', '\d{4}-\d{2}-\d{2}');
+    Route::get('mcp-calls', [AdminApiController::class, 'mcpCalls']);
+    Route::get('requests', [AdminApiController::class, 'requests']);
     Route::get('generations/{id}', [AdminApiController::class, 'generation']);
 });

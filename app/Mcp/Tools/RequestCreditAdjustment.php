@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Tools;
 
+use App\Mcp\McpCallLog;
 use App\Models\User;
 use App\Pixelforge\AdminActions;
 use App\Support\Money;
@@ -16,7 +17,7 @@ use Laravel\Mcp\Server\Tool;
 #[Description('Ask to add (positive) or remove (negative) credits for a user, e.g. a goodwill refund. Does NOT change the balance: it creates a request a human admin must approve in the app within 24 hours.')]
 class RequestCreditAdjustment extends Tool
 {
-    public function handle(Request $request, AdminActions $actions): Response|ResponseFactory
+    public function handle(Request $request, AdminActions $actions, McpCallLog $log): Response|ResponseFactory
     {
         $data = $request->validate([
             'email' => ['required', 'email'],
@@ -38,7 +39,7 @@ class RequestCreditAdjustment extends Tool
             return Response::error('amount_usd cannot be zero.');
         }
 
-        $action = $actions->requestCreditAdjustment($request->user(), $user, $amount, $data['reason']);
+        $action = $actions->requestCreditAdjustment($request->user(), $user, $amount, $data['reason'], $log->clientFor($request->user()));
 
         return Response::structured([
             'request_id' => $action->id,

@@ -38,6 +38,8 @@ This is what claude.ai, Claude Desktop and Claude Code use.
 2. The SHA-256 of the token is matched against an admin's `mcp_token_hash`. If that fails, the Passport `api` guard is tried (`config/auth.php:46-48`). No match: `401`.
 3. A Passport user who is not an admin: `403 {"error":"Forbidden: only Pixelforge admins can use this MCP server."}`. A static token of a non-admin is simply not matched, so it gets `401` (`AdminMcpTest::test_endpoint_requires_an_admin_token`).
 
+Every refusal on `/mcp/admin` (the 401s and the 403 above) is also written to the MCP usage log with outcome `refused`; see `GET /api/admin/mcp-calls`.
+
 ## JSON API
 
 Routes: `routes/api.php`. Laravel adds the `/api` prefix, so the full paths are under `/api/admin`. Middleware: `AuthenticateMcpToken`, `throttle:60,1`. Controller: `app/Http/Controllers/Api/AdminApiController.php`.
@@ -47,6 +49,8 @@ Routes: `routes/api.php`. Laravel adds the `/api` prefix, so the full paths are 
 | GET | `/api/admin/report` | Spend, provider cost and profit per UTC day and per user, checked against Pixelforge `GET /v1/usage`. |
 | GET | `/api/admin/report/days/{date}` | Every generation that finished on one UTC day. |
 | GET | `/api/admin/generations/{id}` | Timeline of one generation: stages, every Pixelforge call and webhook. |
+| GET | `/api/admin/mcp-calls` | MCP usage log: every tool call and refused connection, newest first, paginated. |
+| GET | `/api/admin/requests` | Every AI request for approval (pending, approved, rejected, expired), newest first, paginated. |
 
 Send `Accept: application/json`. For a bad parameter the controller uses Laravel's normal validation; I did not test what an API client without that header receives. **Unverified**.
 
@@ -196,6 +200,81 @@ Response is `GenerationTimeline::build` (`app/Reports/GenerationTimeline.php:16-
 - `activity` is every `pixelforge_activity` row for the generation, oldest first. The columns are explained in `docs/pixelforge-integration-notes.md`, section 4.
 - Test: the same `BillingFlowTest` test checks `summary.webhooks` equals `2` and that the call without a token returns `401`.
 
+### `GET /api/admin/mcp-calls`
+
+The MCP usage log (table `mcp_tool_calls`, model `App\Models\McpToolCall`). Same rows as the **MCP activity** card on Admin > Approvals. Newest first, paginated.
+
+| Query parameter | Default | Notes |
+| --- | --- | --- |
+| `tool` | all | Exact tool name, e.g. `get-user-credits`. |
+| `outcome` | all | `ok`, `error` or `refused`. Anything else is a `422`. |
+| `per_page` | 25 | 1 to 100. |
+| `page` | 1 | |
+
+```json
+{
+  "data": [
+    {
+      "id": 18,
+      "at": "2026-11-17T14:03:11.250Z",
+      "client": "Claude",
+      "user": "Ada Admin",
+      "user_email": "ada@example.com",
+      "tool": "get-user-credits",
+      "arguments": "email=ana@example.com",
+      "outcome": "ok",
+      "error": null,
+      "duration_ms": 42
+    }
+  ],
+  "meta": { "page": 1, "per_page": 25, "total": 1, "last_page": 1 }
+}
+```
+
+- `at` is UTC with milliseconds. `duration_ms` is the time the server spent on the call.
+- `client` is the OAuth client name that was registered (for example `Claude` or `Cursor`), `personal token` for a static token (`php artisan mcp:token` or the Approvals page), and `unknown` when there was no valid token or the client has been deleted.
+- `outcome`: `ok` (the tool answered), `error` (the tool returned an error, validation failed, the tool name does not exist, or it crashed; `error` holds the message the client saw) or `refused` (the request was turned away before any tool ran: no token, bad or expired token, or a signed-in user who is not an admin). Refused rows have `tool` and `arguments` set to `null`, and `error` says why plus the HTTP status.
+- `arguments` is a one-line summary, at most 300 characters, each value cut to 60. Arguments whose name contains `pass`, `secret`, `token`, `key`, `auth`, `cookie`, `credential`, `bearer`, `signature` or `session` are shown as `[hidden]`, and any value that looks like a bearer token, a `pfs_` token, a JWT or a 40+ character opaque string is replaced with `[hidden]` (also in `error`). It is a summary for people, not a replayable record.
+- Refused rows are capped at 20 per minute per IP address so that a flood of bad requests cannot fill the table. The IP address is not stored. Rows older than 90 days are deleted daily (`model:prune`).
+
+Where it is written: one place. `AdminServer::boot()` swaps the `tools/call` handler for `App\Mcp\LoggedCallTool`, which times the call and writes the row through `App\Mcp\McpCallLog`; `AuthenticateMcpToken` writes the refused rows. Tools do not log anything themselves, so a new tool is logged automatically. A logging failure is reported and never breaks the call.
+
+### `GET /api/admin/requests`
+
+Every request an AI made for a human to approve (`admin_actions`), newest first. Same rows as **Waiting for your decision** and **Request history** on Admin > Approvals. A pending request that passed its 24 hours is marked `expired` before the list is built.
+
+| Query parameter | Default | Notes |
+| --- | --- | --- |
+| `status` | all | `pending`, `approved`, `rejected` or `expired`. |
+| `per_page` | 25 | 1 to 100. |
+| `page` | 1 | |
+
+```json
+{
+  "data": [
+    {
+      "id": 5,
+      "type": "credit_adjustment",
+      "email": "ana@example.com",
+      "amount": "$2.00",
+      "reason": "Image failed twice, goodwill refund",
+      "status": "approved",
+      "client": "Claude",
+      "requested_by": "Ada Admin",
+      "decided_by": "Ben Admin",
+      "decided_at": "2026-11-17T14:20:05+00:00",
+      "created_at": "2026-11-17T14:03:11+00:00",
+      "expires_at": "2026-11-18T14:03:11+00:00"
+    }
+  ],
+  "meta": { "page": 1, "per_page": 25, "total": 1, "last_page": 1 }
+}
+```
+
+- `client` and `requested_by` say which AI client asked and as which admin. `client` is `null` for requests made before the column existed.
+- `decided_by` and `decided_at` are `null` while pending and for requests that expired without anyone deciding.
+- Tests: `tests/Feature/Pixelforge/McpUsageLogTest.php`.
+
 ## MCP server
 
 - Class: `app/Mcp/AdminServer.php`. Name "Pixelforge Studio Admin", version `1.0.0`.
@@ -211,6 +290,7 @@ curl -sS https://<host>/mcp/admin \
 
   Tool calls use the standard MCP `tools/call` method. The repository's tests call tools through `AdminServer::actingAs($admin)->tool(...)` rather than over HTTP, so I have not exercised `tools/call` over the wire myself.
 - Server instructions given to the model: money is USD with up to 9 decimals, days are UTC completion days, and write tools never change data directly (they create a request an admin must approve).
+- Usage log: every `tools/call` is recorded (client, user, tool, a short safe summary of the arguments, `ok` or `error`, duration), and so is every refused request. See `GET /api/admin/mcp-calls` above. The log is shown live on Admin > Approvals.
 - Connect clients as described in the README ("Connect Claude to the admin MCP").
 
 ### Tools
