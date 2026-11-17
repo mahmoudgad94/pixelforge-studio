@@ -7,5 +7,5 @@ export default {
     timeout: 240_000,
     workers: 1,
     agents: { default: { executor: claudeCode({ model: 'sonnet' }) } },
-    targets: [{ engine: web(), app: { url: process.env.E2E_APP_URL ?? 'http://localhost:8000' } }],
+    targets: [{ engine: web(), app: { url: process.env.E2E_BASE_URL ?? process.env.E2E_APP_URL ?? 'http://localhost:8000' } }],
 } satisfies E2EConfig;

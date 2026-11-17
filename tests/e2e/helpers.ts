@@ -2,10 +2,20 @@ import { expect } from 'e2e';
 
 type Ctx = { app: { open(path: string): Promise<void> }; screen: any };
 
-/** Logs in with the demo account the login page pre-fills (DEMO_LOGIN_* in .env). */
+/**
+ * Logs in. With E2E_EMAIL and E2E_PASSWORD set it types those credentials; without them it signs in with the
+ * demo account the login page pre-fills (DEMO_LOGIN_EMAIL / DEMO_LOGIN_PASSWORD on the server).
+ */
 export async function loginAsDemo({ app, screen }: Ctx) {
+    const email = process.env.E2E_EMAIL;
+    const password = process.env.E2E_PASSWORD;
     await app.open('/login');
-    await expect(screen.getByText('Demo account, already filled in')).toBeVisible();
+    if (email && password) {
+        await screen.getByLabel('Email address').fill(email);
+        await screen.getByLabel('Password').fill(password);
+    } else {
+        await expect(screen.getByText('Demo account, already filled in')).toBeVisible();
+    }
     await screen.getByRole('button', 'Log in').click();
     await expect(screen.getByText('Estimated price')).toBeVisible({ timeout: 15_000 });
 }

@@ -84,6 +84,21 @@ php artisan test
 
 Covers: admin MCP auth (static token, full OAuth flow, admins only, OAuth discovery), read tools, approval-gated writes (approve once, reject, expiry, no negative balance), docs pricing examples to the nanodollar, Unicode token estimate, markup rounding, hold/charge, insufficient credits, duplicate webhooks (same and different event ids), out-of-order events, webhook-before-response, failed = free, bad and stale signatures, idempotency header, content-policy rejection, and recovery from a local give-up.
 
+## Running e2e against staging
+
+The suite in `tests/e2e/` takes its target from the environment, so the same files run against local, a tunnel or staging.
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `E2E_BASE_URL` | Base URL of the app under test | `http://localhost:8000` |
+| `E2E_EMAIL` / `E2E_PASSWORD` | Login credentials (set both) | the demo account the login page pre-fills (`DEMO_LOGIN_*` on the server) |
+
+```bash
+E2E_BASE_URL=https://<staging-host> E2E_EMAIL=<email> E2E_PASSWORD=<password> npx e2e run
+```
+
+Staging needs `PIXELFORGE_API_KEY` and `PIXELFORGE_WEBHOOK_SECRET`, and an admin user for the Admin report test.
+
 ## Deploy
 
 One image, three roles chosen by the `ROLE` env var (`docker/start.sh`):
